@@ -1,0 +1,5 @@
+node_modules/
+desktop/dist/
+desktop/loopback/bin/
+desktop/loopback/obj/
+desktop/loopback/publish/

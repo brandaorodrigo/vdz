@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vdz</title>
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <table class="lives">
+      <thead>
+        <tr><th>Ao vivo</th></tr>
+      </thead>
+      <tbody id="lives">
+        <tr><td class="empty">Nenhuma transmissão no momento</td></tr>
+      </tbody>
+    </table>
+  </main>
+  <script>
+    const livesBody = document.getElementById('lives');
+
+    function renderLives(names) {
+      livesBody.replaceChildren();
+      if (names.length === 0) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.className = 'empty';
+        cell.textContent = 'Nenhuma transmissão no momento';
+        row.append(cell);
+        livesBody.append(row);
+        return;
+      }
+      for (const name of names) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        const link = document.createElement('a');
+        link.href = '/' + encodeURIComponent(name);
+        link.textContent = name;
+        cell.append(link);
+        row.append(cell);
+        livesBody.append(row);
+      }
+    }
+
+    async function loadLives() {
+      try {
+        const response = await fetch('/api/rooms', { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!data || !Array.isArray(data.rooms)) return;
+        renderLives(data.rooms.filter((name) => typeof name === 'string'));
+      } catch {
+        // Mantém a lista que já está na tela.
+      }
+    }
+
+    loadLives();
+    setInterval(loadLives, 5000);
+  </script>
+</body>
+</html>

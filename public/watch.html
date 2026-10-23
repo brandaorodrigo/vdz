@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vdz</title>
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="watch">
+  <div class="stage">
+    <video id="remote" autoplay playsinline></video>
+    <p id="status" class="status" role="status" aria-label="esperando a transmissão"><span class="icon wait-icon" aria-hidden="true">&#xe99d;</span></p>
+    <nav id="player-menu" class="player-menu" aria-label="Transmissão">
+      <div class="player-menu-sensor" aria-hidden="true"></div>
+      <div class="player-menu-bar">
+        <input id="volume" class="volume" type="range" min="0" max="100" value="50" aria-label="Volume">
+        <button id="unmute" class="icon-btn" type="button" data-tooltip="Mutar" aria-label="Mutar"><span class="icon" aria-hidden="true">volume_up</span></button>
+        <button id="leave" class="icon-btn end" type="button" data-tooltip="Sair da transmissão" aria-label="Sair da transmissão"><span class="icon" aria-hidden="true">close</span></button>
+      </div>
+    </nav>
+  </div>
+  <script src="/watch.js"></script>
+</body>
+</html>

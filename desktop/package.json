@@ -1,0 +1,54 @@
+{
+  "name": "vdz-desktop",
+  "version": "1.1.0",
+  "private": true,
+  "productName": "vdz",
+  "description": "transmissor desktop do vdz",
+  "main": "main.js",
+  "scripts": {
+    "loopback": "dotnet publish loopback/VdzLoopback.csproj -c Release -o loopback/publish",
+    "start": "electron .",
+    "build": "npm run loopback && electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "app.vdz.desktop",
+    "productName": "vdz",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "electronLanguages": ["pt-BR", "en-US"],
+    "compression": "maximum",
+    "extraResources": [
+      {
+        "from": "loopback/publish/vdz-loopback.exe",
+        "to": "vdz-loopback.exe"
+      },
+      {
+        "from": "../public/android-chrome-512x512.png",
+        "to": "icon.png"
+      }
+    ],
+    "win": {
+      "icon": "../public/android-chrome-512x512.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

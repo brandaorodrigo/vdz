@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vdz</title>
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <video id="preview" autoplay muted playsinline hidden></video>
+    <div id="picker" class="picker" hidden>
+      <div id="picker-list"></div>
+    </div>
+    <div id="capture-settings" class="row settings">
+      <input id="room-name" type="text" maxlength="10" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="Nome da transmissão" aria-label="Nome da transmissão">
+      <button id="create" class="icon-btn" type="button" data-tooltip="Criar transmissão" aria-label="Criar transmissão"><span class="icon" aria-hidden="true">cast</span></button>
+    </div>
+    <div class="row">
+      <select id="resolution" aria-label="Resolução" hidden>
+        <option value="480">480p</option>
+        <option value="720">720p</option>
+        <option value="1080" selected>1080p</option>
+      </select>
+      <select id="fps" aria-label="Quadros por segundo" hidden>
+        <option value="30">30 fps</option>
+        <option value="60" selected>60 fps</option>
+      </select>
+      <button id="share" class="icon-btn" type="button" hidden data-tooltip="Selecionar janela para transmitir" aria-label="Selecionar janela para transmitir"><span class="icon" aria-hidden="true">cast</span></button>
+      <button id="stop" class="icon-btn end" type="button" hidden data-tooltip="Encerrar transmissão" aria-label="Encerrar transmissão"><span class="icon" aria-hidden="true">close</span></button>
+    </div>
+  </main>
+  <div id="status" class="status-message" role="status" hidden></div>
+  <script src="/host.js"></script>
+</body>
+</html>

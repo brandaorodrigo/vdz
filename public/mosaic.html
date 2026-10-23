@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vdz</title>
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="mosaic-page">
+  <div id="mosaic" class="mosaic"></div>
+  <nav id="top-menu" class="top-menu" aria-label="Mosaico">
+    <div class="top-menu-sensor" aria-hidden="true"></div>
+    <div class="top-menu-bar">
+      <button id="fewer" class="icon-btn" type="button" data-tooltip="Remover transmissão" aria-label="Remover transmissão"><span class="icon" aria-hidden="true">remove</span></button>
+      <button id="more" class="icon-btn" type="button" data-tooltip="Adicionar transmissão" aria-label="Adicionar transmissão"><span class="icon" aria-hidden="true">add</span></button>
+      <button id="fullscreen" class="icon-btn" type="button" data-tooltip="Tela inteira" aria-label="Tela inteira"><span class="icon" aria-hidden="true">fullscreen</span></button>
+    </div>
+  </nav>
+  <script>
+    const count = Number(location.pathname.slice(1));
+    if (count < 1 || count > 4) throw new Error('mosaico inválido');
+
+    const mosaic = document.getElementById('mosaic');
+    const fewerBtn = document.getElementById('fewer');
+    const moreBtn = document.getElementById('more');
+    const fullscreenBtn = document.getElementById('fullscreen');
+    const fullscreenIcon = fullscreenBtn.querySelector('.icon');
+
+    mosaic.className = 'mosaic count-' + count;
+    for (let index = 0; index < count; index += 1) {
+      const frame = document.createElement('iframe');
+      frame.src = '/watch';
+      frame.title = 'Transmissão ' + (index + 1);
+      frame.allow = 'autoplay; fullscreen';
+      mosaic.append(frame);
+    }
+
+    fewerBtn.setAttribute('aria-disabled', count <= 1 ? 'true' : 'false');
+    moreBtn.setAttribute('aria-disabled', count >= 4 ? 'true' : 'false');
+
+    fewerBtn.addEventListener('click', () => {
+      if (count > 1) location.assign('/' + (count - 1));
+    });
+
+    moreBtn.addEventListener('click', () => {
+      if (count < 4) location.assign('/' + (count + 1));
+    });
+
+    function renderFullscreen() {
+      const active = document.fullscreenElement != null;
+      fullscreenIcon.textContent = active ? 'fullscreen_exit' : 'fullscreen';
+      fullscreenBtn.setAttribute('aria-label', active ? 'Sair da tela inteira' : 'Tela inteira');
+    }
+
+    fullscreenBtn.addEventListener('click', () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+        return;
+      }
+      document.documentElement.requestFullscreen().catch(() => {});
+    });
+
+    document.addEventListener('fullscreenchange', renderFullscreen);
+
+    const topMenu = document.getElementById('top-menu');
+    if (window.matchMedia('(hover: none)').matches) {
+      topMenu.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('button')) return;
+        topMenu.classList.toggle('open');
+      });
+    }
+  </script>
+</body>
+</html>

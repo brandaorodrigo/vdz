@@ -106,6 +106,13 @@ function targetOf(room, meta, to) {
   return null;
 }
 
+function publishViewers(room) {
+  const count = room.viewers.size;
+  for (const viewerWs of room.viewers.values()) {
+    send(viewerWs, { type: 'viewers', count });
+  }
+}
+
 function handleCreate(ws, meta, msg) {
   if (meta.role === 'host' && meta.roomId && rooms.has(meta.roomId)) return;
   if (meta.role) return;
@@ -171,6 +178,7 @@ function admitWaiters(room) {
     send(viewerWs, { type: 'joined', roomId: room.id });
     send(room.hostWs, { type: 'viewer-joined', viewerId });
   }
+  publishViewers(room);
 }
 
 function handleJoin(ws, meta, msg) {
@@ -190,6 +198,7 @@ function handleJoin(ws, meta, msg) {
   meta.roomId = room.id;
   send(ws, { type: 'joined', roomId: room.id });
   send(room.hostWs, { type: 'viewer-joined', viewerId: meta.id });
+  publishViewers(room);
 }
 
 function handleSignal(meta, msg) {
@@ -232,6 +241,7 @@ function removeClient(ws) {
   if (meta.role === 'viewer' && room.viewers.get(meta.id) === ws) {
     room.viewers.delete(meta.id);
     send(room.hostWs, { type: 'viewer-left', viewerId: meta.id });
+    publishViewers(room);
   }
 }
 

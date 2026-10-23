@@ -50,7 +50,9 @@ JSON texto, no máximo 64 KB. Tipo desconhecido ou JSON inválido é ignorado.
 
 Cliente para servidor: `create`, `join`, `signal`, `ping`.
 
-Servidor para cliente: `created`, `joined`, `waiting`, `viewer-joined`, `viewer-left`, `signal`, `error`, `pong`.
+Servidor para cliente: `created`, `joined`, `waiting`, `viewer-joined`, `viewer-left`, `viewers`, `signal`, `error`, `pong`.
+
+`viewers` leva `{ count }` a cada assistindo. A contagem é quem está na sala, inclusive quem recebe. Sai de novo quando alguém entra ou sai. Quem só espera a sala existir fica de fora.
 
 `signal.data` só pode ser oferta, resposta ou ICE. Oferta só sai do transmissor. Resposta só sai de um assistindo e só para o transmissor. O servidor não lê o SDP.
 
@@ -92,7 +94,7 @@ Fonte Google Sans e ícones Material Icons, ambos do Google Fonts. Fundo `#1a191
 
 `/host` começa só com o nome e o botão de criar. Enter cria a sala. Depois aparecem resolução, quadros, escolher janela e encerrar. O nome `watch` também não pode ser usado.
 
-`/nome` é o vídeo em tela cheia da página. Sem imagem, o centro mostra o ícone de espera. Volume, som e o X ficam num menu no centro da borda de baixo e só aparecem com o ponteiro perto dessa borda. No toque, um toque nessa borda abre e fecha. Volume começa em 50%, desmutado. O X volta para `/watch`.
+`/nome` é o vídeo em tela cheia da página. Sem imagem, o centro mostra o ícone de espera. Volume, som e o X ficam num menu no centro da borda de baixo e só aparecem com o ponteiro perto dessa borda. O número de quem está assistindo fica numa bolinha antes do volume, nesse menu, e some enquanto a sala não existe. No toque, um toque nessa borda abre e fecha. Volume começa em 50%, desmutado. O X volta para `/watch`.
 
 `/1` é um iframe em tela toda. `/2` são dois iframes lado a lado. `/3` são três lado a lado. `/4` são dois em cima e dois embaixo. Cada iframe abre `/watch`. O menu com menos quadros, mais quadros e a tela inteira fica no centro do topo e só aparece com o ponteiro na borda de cima. No toque, um toque nessa borda abre e fecha. Mais quadros abre o mosaico seguinte, do zero, com `/watch` de novo em cada quadro. Menos quadros volta um. No `/1` o menos fica desligado. No `/4` o mais fica desligado.
 

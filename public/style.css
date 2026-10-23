@@ -346,6 +346,27 @@ body.watch .wait-icon {
   color: #5c574f;
 }
 
+.viewer-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  padding: 0 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #00000033;
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
 .stage video {
   position: absolute;
   inset: 0;

@@ -9,6 +9,7 @@ const volumeInput = document.getElementById('volume');
 const leaveBtn = document.getElementById('leave');
 const soundIcon = unmuteBtn.querySelector('.icon');
 const video = document.getElementById('remote');
+const viewerCountEl = document.getElementById('viewer-count');
 const VOLUME_START = 50;
 
 let ws = null;
@@ -26,6 +27,19 @@ let soundMuted = false;
 
 function setStatus(text) {
   statusEl.hidden = text === 'No ar';
+}
+
+function setViewerCount(count) {
+  if (!Number.isInteger(count) || count < 1) {
+    viewerCountEl.hidden = true;
+    viewerCountEl.textContent = '';
+    viewerCountEl.removeAttribute('aria-label');
+    return;
+  }
+  viewerCountEl.hidden = false;
+  viewerCountEl.textContent = String(count);
+  const people = count === 1 ? '1 pessoa assistindo' : count + ' pessoas assistindo';
+  viewerCountEl.setAttribute('aria-label', people);
 }
 
 function soundGlyph(muted) {
@@ -236,6 +250,7 @@ function onSignal(msg) {
 function waitForBroadcast() {
   closePc();
   setStatus('Esperando a transmissão');
+  setViewerCount(0);
 }
 
 function nextDelay() {
@@ -287,6 +302,10 @@ function connect() {
       closePc();
       createPc();
       setStatus('Esperando a transmissão');
+      return;
+    }
+    if (msg.type === 'viewers' && Number.isInteger(msg.count)) {
+      setViewerCount(msg.count);
       return;
     }
     if (msg.type === 'signal') {

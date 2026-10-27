@@ -3,12 +3,12 @@
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 const PING_MS = 4 * 60 * 1000;
 const BITRATES = new Map([
-  ['480:30', 1_000_000],
-  ['480:60', 2_000_000],
-  ['720:30', 3_000_000],
-  ['720:60', 4_000_000],
-  ['1080:30', 5_000_000],
-  ['1080:60', 6_000_000]
+  ['480:30', 500_000],
+  ['480:60', 1_000_000],
+  ['720:30', 2_000_000],
+  ['720:60', 3_000_000],
+  ['1080:30', 4_000_000],
+  ['1080:60', 5_000_000]
 ]);
 const FRAME_RATES = new Set([30, 60]);
 const RESOLUTIONS = new Map([
@@ -712,6 +712,7 @@ async function startCapture() {
 function endRoom() {
   closePicker(null);
   if (phase !== 'live' && phase !== 'sharing') return;
+  send({ type: 'leave' });
   phase = 'dead';
   roomWasLost = false;
   creating = false;
@@ -719,10 +720,13 @@ function endRoom() {
   teardownMedia();
   showCreate();
   setStatus();
-  if (ws && ws.readyState !== WebSocket.CLOSED) {
-    ws.userEnded = true;
-    ws.close();
-  }
+}
+
+function leavePage() {
+  if (phase === 'live' || phase === 'sharing') send({ type: 'leave' });
+  if (!ws || ws.readyState === WebSocket.CLOSED) return;
+  ws.userEnded = true;
+  ws.close();
 }
 
 function roomNameFromField() {
@@ -771,6 +775,12 @@ fpsSelect.addEventListener('change', scheduleQuality);
 resolutionSelect.addEventListener('change', scheduleQuality);
 
 createBtn.addEventListener('click', requestCreate);
+document.querySelector('.stream-back').addEventListener('click', (event) => {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  if (phase !== 'live' && phase !== 'sharing') return;
+  send({ type: 'leave' });
+});
+window.addEventListener('pagehide', leavePage);
 shareBtn.addEventListener('click', () => {
   startCapture();
 });

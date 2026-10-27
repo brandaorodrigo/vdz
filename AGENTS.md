@@ -49,7 +49,7 @@ Arquivos de `public/` saem de uma lista branca em `server.js`. Página nova ou s
 
 JSON texto, no máximo 64 KB. Tipo desconhecido ou JSON inválido é ignorado.
 
-Cliente para servidor: `create`, `join`, `signal`, `ping`.
+Cliente para servidor: `create`, `join`, `signal`, `ping`, `leave`.
 
 Servidor para cliente: `created`, `joined`, `waiting`, `viewer-joined`, `viewer-left`, `viewers`, `signal`, `error`, `pong`.
 
@@ -59,9 +59,9 @@ Servidor para cliente: `created`, `joined`, `waiting`, `viewer-joined`, `viewer-
 
 `ping` a cada 4 minutos, resposta `pong`, para o plano grátis do Render não dormir com uma sala aberta.
 
-A sala existe desde o `create`, antes de escolher a janela. Some quando o socket do transmissor fecha. Quem assistia volta a esperar o mesmo nome. Quem entra num nome que ainda não existe também espera, e entra sozinho quando a sala for criada de novo.
+A sala existe desde o `create`, antes de escolher a janela. Some quando o transmissor manda `leave`, e também quando o socket dele fecha. Quem assistia volta a esperar o mesmo nome. Quem entra num nome que ainda não existe também espera, e entra sozinho quando a sala for criada de novo.
 
-Recriar o mesmo nome logo depois de sair depende do fechamento do socket antigo. Enquanto esse socket segue aberto para o servidor, o nome responde "Essa sala já está em uso".
+O transmissor manda `leave` ao encerrar e ao sair da página. O nome fica livre nesse instante, com o socket antigo ainda aberto. Sem essa mensagem, o nome só sai quando o servidor vê o socket fechar, e até lá a resposta é "Essa sala já está em uso".
 
 ## WebRTC
 

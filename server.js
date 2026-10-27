@@ -116,6 +116,26 @@ function publishViewers(room) {
   }
 }
 
+function releaseHost(ws, meta) {
+  if (meta.role !== 'host' || !meta.roomId) return;
+  const roomId = meta.roomId;
+  const room = rooms.get(roomId);
+  meta.role = null;
+  meta.roomId = null;
+  if (!room || room.hostWs !== ws) return;
+  const parked = [...room.viewers.entries()];
+  rooms.delete(room.id);
+  for (const [, viewerWs] of parked) {
+    const viewer = clients.get(viewerWs);
+    if (!viewer || viewerWs.readyState !== WebSocket.OPEN) continue;
+    parkViewer(viewerWs, viewer, roomId);
+  }
+}
+
+function handleLeave(ws, meta) {
+  releaseHost(ws, meta);
+}
+
 function handleCreate(ws, meta, msg) {
   if (meta.role === 'host' && meta.roomId && rooms.has(meta.roomId)) return;
   if (meta.role) return;
@@ -231,13 +251,7 @@ function removeClient(ws) {
   if (!room) return;
 
   if (meta.role === 'host' && room.hostWs === ws) {
-    const parked = [...room.viewers.entries()];
-    rooms.delete(room.id);
-    for (const [viewerId, viewerWs] of parked) {
-      const viewer = clients.get(viewerWs);
-      if (!viewer || viewerWs.readyState !== WebSocket.OPEN) continue;
-      parkViewer(viewerWs, viewer, room.id);
-    }
+    releaseHost(ws, meta);
     return;
   }
 
@@ -350,6 +364,10 @@ wss.on('connection', (ws) => {
     if (!msg) return;
     if (msg.type === 'ping') {
       send(ws, { type: 'pong' });
+      return;
+    }
+    if (msg.type === 'leave') {
+      handleLeave(ws, meta);
       return;
     }
     if (msg.type === 'create') {

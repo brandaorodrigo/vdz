@@ -47,31 +47,147 @@ body {
   line-height: 1.5;
 }
 
-.home-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.85rem;
-  justify-content: center;
-}
-
-.home-actions a {
+.home-feature {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 11rem;
+  max-width: 100%;
   background: var(--button);
   color: var(--button-text);
   border-radius: 999px;
-  padding: 0.9rem 1.4rem;
-  font-size: 1.05rem;
+  padding: 1.05rem 1.7rem;
+  font-size: clamp(0.95rem, 3.4vw, 1.2rem);
   font-weight: 600;
   line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
   text-decoration: none;
 }
 
-.home-actions a:focus-visible {
+.home-feature:hover {
+  background: #cccccc;
+}
+
+.home-feature:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 3px;
+}
+
+.home-transmit {
+  margin-top: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #333333;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.75rem 1.45rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.home-transmit:hover {
+  background: #444444;
+}
+
+.home-transmit:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.home-note {
+  max-width: 26rem;
+  margin: 1rem 0 0;
+  color: #c8c0b4;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+html.desktop .home-note {
+  display: none;
+}
+
+.home-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  justify-content: center;
+  margin-top: 1.05rem;
+}
+
+.home-links a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: #c8c0b4;
+  text-decoration: none;
+}
+
+.home-links svg {
+  width: 1.55rem;
+  height: 1.55rem;
+  display: block;
+  fill: currentColor;
+}
+
+.home-links a.linux svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.home-links a.github svg {
+  width: 1.85rem;
+  height: 1.85rem;
+}
+
+.home-links a:hover,
+.home-links a:focus-visible {
+  color: var(--ink);
+}
+
+.home-links a:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+.home-links a[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  top: calc(100% + 0.45rem);
+  transform: translateX(-50%);
+  padding: 0.28rem 0.55rem;
+  border-radius: 0.35rem;
+  background: var(--ink);
+  color: var(--bg);
+  font-family: "Google Sans", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.home-links a[data-tooltip]:hover::after,
+.home-links a[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
 }
 
 .lives {
@@ -115,7 +231,7 @@ body:not(.watch):not(.mosaic-page) {
 
 main {
   width: 100%;
-  max-width: 46rem;
+  max-width: 22rem;
   margin: 0 auto;
   padding: 1.25rem;
 }

@@ -14,13 +14,31 @@
   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;600&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
+  <script>
+    if (window.vdzDesktop) document.documentElement.classList.add('desktop');
+  </script>
 </head>
 <body>
   <main>
-    <nav class="home-actions" aria-label="Início">
-      <a href="/1">Assistir</a>
-      <a href="/vdz_1.1.0.exe">Baixar</a>
+    <a class="home-feature" href="/1" style="width: 100%;">Assistir</a>
+    <button class="home-transmit" type="button" id="transmit" style="width: 100%;">Transmitir</button>
+    <p class="home-note" id="transmit-note" role="status">Se transmitir pelo navegador, não conseguirá compartilhar o áudio de forma isolada.</p>
+    <nav class="home-links" aria-label="Download e código">
+      <a href="/vdz_1.2.0.exe" aria-label="Windows" data-tooltip="Windows">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h11.377v11.372H0zm12.623 0H24v11.372H12.623zM0 12.623h11.377V24H0zm12.623 0H24V24H12.623"/></svg>
+      </a>
+      <a class="linux" href="/vdz_1.2.0.AppImage" aria-label="Linux" data-tooltip="Linux">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.62 8.35c-.42.28-1.75 1.04-1.95 1.19c-.39.31-.75.29-1.14-.01c-.2-.16-1.53-.92-1.95-1.19c-.48-.31-.45-.7.08-.92c1.64-.69 3.28-.64 4.91.03c.49.21.51.6.05.9m7.22 7.28c-.93-2.09-2.2-3.99-3.84-5.66a4.3 4.3 0 0 1-1.06-1.88c-.1-.33-.17-.67-.24-1.01c-.2-.88-.29-1.78-.7-2.61c-.73-1.58-2-2.4-3.84-2.47c-1.81.05-3.16.81-3.95 2.4c-.21.43-.36.88-.46 1.34c-.17.76-.32 1.55-.5 2.32c-.15.65-.45 1.21-.96 1.71c-1.61 1.57-2.9 3.37-3.88 5.35c-.14.29-.28.58-.37.88c-.19.66.29 1.12.99.96c.44-.09.88-.18 1.3-.31c.41-.15.57-.05.67.35c.65 2.15 2.07 3.66 4.24 4.5c4.12 1.56 8.93-.66 9.97-4.58c.07-.27.17-.37.47-.27c.46.14.93.24 1.4.35c.49.09.85-.16.92-.64c.03-.26-.06-.49-.16-.73"/></svg>
+      </a>
+      <a class="github" href="https://github.com/brandaorodrigo/vdz" target="_blank" rel="noopener noreferrer" aria-label="GitHub" data-tooltip="GitHub">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+      </a>
     </nav>
   </main>
+  <script>
+    document.getElementById('transmit').addEventListener('click', () => {
+      location.href = '/host';
+    });
+  </script>
 </body>
 </html>

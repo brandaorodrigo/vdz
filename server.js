@@ -45,7 +45,10 @@ const TYPES = new Map([
   ['.webmanifest', 'application/manifest+json']
 ]);
 
-const SETUP_FILE = path.join(PUBLIC_DIR, 'vdz_1.1.0.exe');
+const SETUPS = new Map([
+  ['/vdz_1.2.0.exe', 'vdz_1.2.0.exe'],
+  ['/vdz_1.2.0.AppImage', 'vdz_1.2.0.AppImage']
+]);
 const rooms = new Map();
 const waiting = new Map();
 const clients = new Map();
@@ -286,8 +289,10 @@ function serve(req, res) {
     res.end(req.method === 'HEAD' ? undefined : body);
     return;
   }
-  if (url.pathname === '/vdz_1.1.0.exe') {
-    fs.stat(SETUP_FILE, (error, stat) => {
+  const setupName = SETUPS.get(url.pathname);
+  if (setupName) {
+    const setupFile = path.join(PUBLIC_DIR, setupName);
+    fs.stat(setupFile, (error, stat) => {
       if (error || !stat.isFile()) {
         res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end(req.method === 'HEAD' ? undefined : 'not found');
@@ -296,14 +301,14 @@ function serve(req, res) {
       res.writeHead(200, {
         'Content-Type': 'application/octet-stream',
         'Content-Length': stat.size,
-        'Content-Disposition': 'attachment; filename="vdz_1.1.0.exe"',
+        'Content-Disposition': `attachment; filename="${setupName}"`,
         'Cache-Control': 'no-cache'
       });
       if (req.method === 'HEAD') {
         res.end();
         return;
       }
-      const stream = fs.createReadStream(SETUP_FILE);
+      const stream = fs.createReadStream(setupFile);
       stream.on('error', () => {
         res.destroy();
       });

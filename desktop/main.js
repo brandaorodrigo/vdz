@@ -3,6 +3,7 @@
 const { app, BrowserWindow, Menu, desktopCapturer, ipcMain, session } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const linuxAudio = require('./linux-audio');
 
 const CHUNK_BYTES = 960 * 2 * 4;
 
@@ -27,12 +28,17 @@ function hwndFromSourceId(id) {
   const match = /^window:(-?\d+):(-?\d+)$/.exec(id);
   if (!match) return null;
   const value = BigInt(match[1]);
-  const mask = (1n << 64n) - 1n;
+  const bits = process.platform === 'linux' ? 32n : 64n;
+  const mask = (1n << bits) - 1n;
   return (value & mask).toString();
 }
 
 function stopAudio() {
   audioQueue = Buffer.alloc(0);
+  if (process.platform === 'linux') {
+    linuxAudio.stop();
+    return;
+  }
   const child = audioChild;
   audioChild = null;
   if (!child) return;
@@ -48,6 +54,12 @@ function stopAudio() {
 function startAudio(pid, contents) {
   stopAudio();
   hostContents = contents;
+  if (process.platform === 'linux') {
+    return linuxAudio.start(pid, (piece) => {
+      if (!hostContents || hostContents.isDestroyed()) return;
+      hostContents.send('vdz-pcm', piece);
+    });
+  }
   let child;
   try {
     child = spawn(loopbackPath(), ['capture', String(pid)], {
@@ -100,6 +112,7 @@ function startAudio(pid, contents) {
 
 function lookupPids(hwnds) {
   if (!hwnds.length) return Promise.resolve([]);
+  if (process.platform === 'linux') return linuxAudio.lookupPids(hwnds);
   return new Promise((resolve, reject) => {
     const child = spawn(loopbackPath(), ['lookup'], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -175,10 +188,11 @@ function wireNavigation(win) {
 function createHost() {
   const win = new BrowserWindow(windowOptions());
   wireNavigation(win);
-  win.loadURL(serverOrigin() + '/host');
+  win.loadURL(serverOrigin() + '/');
   return win;
 }
 
+if (process.platform === 'linux') app.commandLine.appendSwitch('ozone-platform', 'x11');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 app.whenReady().then(() => {
@@ -220,7 +234,8 @@ app.whenReady().then(() => {
     for (let i = 0; i < usable.length; i++) {
       const source = usable[i];
       const pid = pids[i] || 0;
-      if (!pid || pid === process.pid) continue;
+      if (pid === process.pid) continue;
+      if (!pid && process.platform !== 'linux') continue;
       sourceCache.set(source.id, source);
       listed.push({
         id: source.id,

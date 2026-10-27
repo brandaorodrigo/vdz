@@ -12,14 +12,14 @@ A interface é em português. O servidor só apresenta as pessoas. O vídeo e o 
 - Sala é só letras minúsculas, de 1 a 32. O campo da tela limita a 10.
 - Cada assistindo recebe a própria conexão com o transmissor. Não reenviar de um assistindo para outro.
 - Mudança só em `public/` não pede recompilar o Electron. O aplicativo abre o site ao vivo. Recompilar quando mudar `desktop/main.js`, `desktop/preload.js` ou o executável do loopback.
-- O instalador servido no site é `public/vdz_1.1.0.exe`. O build novo fica em `desktop/dist/` até alguém copiar para `public/`.
+- O instalador Windows servido no site é `public/vdz_1.2.0.exe`. O do Linux é `public/vdz_1.2.0.AppImage`. O build novo fica em `desktop/dist/` até alguém copiar para `public/`.
 
 ## Pastas
 
 ```
 server.js                 sinalização e arquivos estáticos
 public/                   páginas, CSS e o instalador publicado
-desktop/main.js           janela Electron, abre /host
+desktop/main.js           janela Electron, abre /
 desktop/preload.js        window.vdzDesktop
 desktop/loopback/         captura de áudio WASAPI em C#
 ```
@@ -32,14 +32,15 @@ Estado só na memória. Reiniciar o processo apaga as salas.
 
 | Caminho | O que entrega |
 |---|---|
-| `/` | `index.html`, botões Assistir e Baixar |
+| `/` | `index.html`, Assistir, Transmitir, e os ícones Windows, Linux e GitHub |
 | `/watch` | `rooms.html`, lista ao vivo |
 | `/host` | `live.html`, transmissor, no navegador e no Electron |
 | `/1` `/2` `/3` `/4` | `mosaic.html`, um a quatro iframes de `/watch` |
 | `/nome` | `watch.html`, se o nome for `^[a-z]{1,32}$` e não for `host` nem `watch` |
 | `/api/rooms` | JSON `{ "rooms": ["nome"] }`, salas em uso, sem cache |
 | `/health` | texto `ok` |
-| `/vdz_1.1.0.exe` | o instalador de `public/`, como anexo |
+| `/vdz_1.2.0.exe` | o instalador Windows de `public/`, como anexo |
+| `/vdz_1.2.0.AppImage` | o instalador Linux de `public/`, como anexo |
 | `/ws` | WebSocket |
 
 Arquivos de `public/` saem de uma lista branca em `server.js`. Página nova ou script novo precisa entrar nessa lista. `/host` e `/watch` têm de ser resolvidos antes do padrão da sala.
@@ -82,13 +83,13 @@ O padrão da sala é 1080p a 60 fps, portanto 6 Mbps. Mudar resolução ou quadr
 
 No navegador, `getDisplayMedia` pede vídeo e áudio. Se o áudio falhar, a imagem segue e a faixa diz "transmissão sem som".
 
-No Electron, o vídeo é a janela escolhida no seletor próprio. O áudio é o processo dessa janela, pelo `vdz-loopback.exe`, PCM 48 kHz estéreo, injetado num AudioWorklet.
+No Electron, o vídeo é a janela escolhida no seletor próprio. O áudio é o processo dessa janela, PCM 48 kHz estéreo, injetado num AudioWorklet. No Windows isso sai do `vdz-loopback.exe`. No Linux o aplicativo abre em X11, no Wayland via XWayland, o PID da janela vem do `xprop`, e o som do processo vem do PipeWire (`pw-dump`, `pw-record`, `pw-link`). Sem esses programas, a imagem segue e a faixa diz "transmissão sem som".
 
 ## Páginas
 
 Fonte Google Sans e ícones Material Icons, ambos do Google Fonts. Fundo `#1a1917`.
 
-`/` tem dois botões: Assistir abre `/1`, Baixar baixa o instalador.
+`/` tem o botão Assistir, que abre `/1`, e embaixo o botão Transmitir, que abre `/host`. No navegador, o aviso de que o áudio não sai de forma adequada fica visível o tempo todo. No Electron, essa frase não aparece. Abaixo ficam os ícones Windows (`/vdz_1.2.0.exe`), Linux (`/vdz_1.2.0.AppImage`) e GitHub (https://github.com/brandaorodrigo/vdz).
 
 `/watch` lista os nomes em uso, atualiza a cada 5 segundos, e cada nome aponta para `/nome`.
 
@@ -100,7 +101,7 @@ Fonte Google Sans e ícones Material Icons, ambos do Google Fonts. Fundo `#1a191
 
 ## Electron
 
-Windows x64, Electron 35.7.5, produto `vdz` 1.1.0, id `app.vdz.desktop`. Abre `origem + /host`. A origem padrão é `https://vdz.onrender.com`. `--url=` ou `VDZ_URL` trocam isso.
+Windows x64 e Linux x64, Electron 35.7.5, produto `vdz` 1.2.0, id `app.vdz.desktop`. Abre `origem + /`. A origem padrão é `https://vdz.onrender.com`. `--url=` ou `VDZ_URL` trocam isso.
 
 O preload expõe `vdzDesktop.listWindows`, `arm`, `beginAudio`, `stopAudio` e `onPcm`.
 
@@ -111,7 +112,7 @@ npm install
 npm run build
 ```
 
-Isso publica o loopback em `desktop/loopback/publish/` e gera o instalador NSIS em `desktop/dist/`. Idiomas do Chromium: `pt-BR` e `en-US`. Compressão máxima. O ícone da janela e do instalador é `public/android-chrome-512x512.png`.
+Isso publica o loopback em `desktop/loopback/publish/` e gera o instalador NSIS em `desktop/dist/`. O AppImage sai de `npm run build:linux` numa máquina Linux, em `desktop/dist/vdz_1.2.0.AppImage`, e não usa o loopback. Idiomas do Chromium: `pt-BR` e `en-US`. Compressão máxima. O ícone da janela e do instalador é `public/android-chrome-512x512.png`.
 
 Para testar contra o servidor local: `VDZ_URL=http://127.0.0.1:3000` antes de `npm start` em `desktop/`.
 

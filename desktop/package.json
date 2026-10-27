@@ -1,6 +1,6 @@
 {
   "name": "vdz-desktop",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "productName": "vdz",
   "description": "transmissor desktop do vdz",
@@ -8,7 +8,8 @@
   "scripts": {
     "loopback": "dotnet publish loopback/VdzLoopback.csproj -c Release -o loopback/publish",
     "start": "electron .",
-    "build": "npm run loopback && electron-builder --win nsis --x64"
+    "build": "npm run loopback && electron-builder --win nsis --x64",
+    "build:linux": "electron-builder --linux AppImage --x64"
   },
   "devDependencies": {
     "electron": "^35.7.5",
@@ -23,15 +24,12 @@
     "files": [
       "main.js",
       "preload.js",
+      "linux-audio.js",
       "package.json"
     ],
     "electronLanguages": ["pt-BR", "en-US"],
     "compression": "maximum",
     "extraResources": [
-      {
-        "from": "loopback/publish/vdz-loopback.exe",
-        "to": "vdz-loopback.exe"
-      },
       {
         "from": "../public/android-chrome-512x512.png",
         "to": "icon.png"
@@ -39,9 +37,28 @@
     ],
     "win": {
       "icon": "../public/android-chrome-512x512.png",
+      "extraResources": [
+        {
+          "from": "loopback/publish/vdz-loopback.exe",
+          "to": "vdz-loopback.exe"
+        }
+      ],
       "target": [
         {
           "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "../public/android-chrome-512x512.png",
+      "category": "AudioVideo",
+      "executableName": "vdz",
+      "synopsis": "transmissor desktop do vdz",
+      "artifactName": "vdz_${version}.${ext}",
+      "target": [
+        {
+          "target": "AppImage",
           "arch": ["x64"]
         }
       ]

@@ -1,5 +1,6 @@
 node_modules/
 desktop/dist/
+desktop/.cache/
 desktop/loopback/bin/
 desktop/loopback/obj/
 desktop/loopback/publish/

@@ -6,13 +6,13 @@ O site público é https://vdz.onrender.com.
 
 ## O que dá para fazer
 
-A página inicial tem dois botões: **Assistir** abre um quadro em tela toda, e **Baixar** baixa o aplicativo para Windows.
+A página inicial tem o botão **Assistir**, que abre um quadro em tela toda, e o botão **Transmitir**, que abre a página de transmissão. No navegador, o aviso de que o áudio não sai de forma adequada fica sempre visível. No aplicativo, essa frase não aparece. Embaixo ficam os ícones de Windows, Linux e GitHub.
 
 Dentro do quadro, a tabela **Ao vivo** lista as transmissões abertas. Cada nome é o link para assistir. A lista se atualiza sozinha. No topo, o menu com menos quadros, mais quadros e tela inteira aparece quando o ponteiro chega na borda de cima. Mais quadros passa para 2, 3 e no máximo 4, sempre reabrindo a lista em cada quadro. `/2` mostra dois quadros lado a lado, `/3` mostra três, e `/4` mostra dois em cima e dois embaixo.
 
 Quem assiste em `/nome` vê a imagem em tela cheia. O volume começa em 50%. Volume, som e o X aparecem num menu no centro da borda de baixo quando o ponteiro chega perto dela, mesmo enquanto a transmissão não começou. O X volta para a lista. Quando ela abre, a página entra sozinha.
 
-Quem transmite abre `/host`, ou o aplicativo do Windows, que já entra nessa página. Na primeira tela só escolhe o nome. Depois escolhe 480p, 720p ou 1080p, e 30 ou 60 quadros. A taxa de bits acompanha essa escolha:
+Quem transmite abre `/host`. O aplicativo do Windows e o do Linux abrem a página inicial do site. Em `/host`, a primeira tela só escolhe o nome. Depois escolhe 480p, 720p ou 1080p, e 30 ou 60 quadros. A taxa de bits acompanha essa escolha:
 
 | | 30 fps | 60 fps |
 |---|---|---|
@@ -44,7 +44,7 @@ npm install
 VDZ_URL=http://127.0.0.1:3000 npm start
 ```
 
-O instalador do Windows é gerado com `npm run build` dentro de `desktop/`. O arquivo publicado no site é `public/vdz_1.1.0.exe`.
+O instalador do Windows é gerado com `npm run build` dentro de `desktop/`. O AppImage do Linux sai de `npm run build:linux` numa máquina Linux. Os arquivos publicados no site são `public/vdz_1.2.0.exe` e `public/vdz_1.2.0.AppImage`.
 
 ## Render
 

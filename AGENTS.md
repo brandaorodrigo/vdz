@@ -33,7 +33,7 @@ Estado só na memória. Reiniciar o processo apaga as salas.
 | Caminho | O que entrega |
 |---|---|
 | `/` | `index.html`, Assistir, Transmitir, e os ícones Windows, Linux e GitHub |
-| `/watch` | `rooms.html`, lista ao vivo |
+| `/watch` | `stream.html`, lista ao vivo |
 | `/host` | `live.html`, transmissor, no navegador e no Electron |
 | `/1` `/2` `/3` `/4` | `mosaic.html`, um a quatro iframes de `/watch` |
 | `/nome` | `watch.html`, se o nome for `^[a-z]{1,32}$` e não for `host` nem `watch` |
@@ -89,11 +89,11 @@ No Electron, o vídeo é a janela escolhida no seletor próprio. O áudio é o p
 
 Fonte Google Sans e ícones Material Icons, ambos do Google Fonts. Fundo `#1a1917`.
 
-`/` tem o botão Assistir, que abre `/1`, e embaixo o botão Transmitir, que abre `/host`. No navegador, o aviso de que o áudio não sai de forma adequada fica visível o tempo todo. No Electron, essa frase não aparece. Abaixo ficam os ícones Windows (`/vdz_1.2.0.exe`), Linux (`/vdz_1.2.0.AppImage`) e GitHub (https://github.com/brandaorodrigo/vdz).
+`/` tem o botão Assistir, que abre `/1`, e embaixo o botão Transmitir, que abre `/host`. No navegador, o aviso de que o áudio não sai de forma adequada fica visível o tempo todo, e abaixo ficam os ícones Windows (`/vdz_1.2.0.exe`), Linux (`/vdz_1.2.0.AppImage`) e GitHub (https://github.com/brandaorodrigo/vdz). No Electron, a frase e esses ícones não aparecem.
 
 `/watch` lista os nomes em uso, atualiza a cada 5 segundos, e cada nome aponta para `/nome`.
 
-`/host` começa só com o nome e o botão de criar. Enter cria a sala. Depois aparecem resolução, quadros, escolher janela e encerrar. O nome `watch` também não pode ser usado.
+`/host` começa só com o nome e o botão de criar. Enter cria a sala. Depois aparecem resolução, quadros, escolher janela e encerrar. O Voltar fica na parte de baixo e abre `/`. O nome `watch` também não pode ser usado.
 
 `/nome` é o vídeo em tela cheia da página. Sem imagem, o centro mostra o ícone de espera. Volume, som e o X ficam num menu no centro da borda de baixo e só aparecem com o ponteiro perto dessa borda. O número de quem está assistindo fica numa bolinha antes do volume, nesse menu, e some enquanto a sala não existe. No toque, um toque nessa borda abre e fecha. Volume começa em 50%, desmutado. O X volta para `/watch`.
 

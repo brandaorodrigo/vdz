@@ -15,17 +15,18 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
-<body>
+<body class="stream">
   <main>
     <table class="lives">
       <thead>
-        <tr><th>Ao vivo</th></tr>
+        <tr><th>Transmissões</th></tr>
       </thead>
       <tbody id="lives">
         <tr><td class="empty">Nenhuma transmissão no momento</td></tr>
       </tbody>
     </table>
   </main>
+  <a class="icon-btn stream-back" href="/" target="_top" data-tooltip="Voltar" aria-label="Voltar"><span class="icon" aria-hidden="true">arrow_back</span></a>
   <script>
     const livesBody = document.getElementById('lives');
 

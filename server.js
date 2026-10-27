@@ -14,7 +14,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const FILES = new Map([
   ['/', 'index.html'],
-  ['/watch', 'rooms.html'],
+  ['/watch', 'stream.html'],
   ['/host', 'host.html'],
   ['/host.js', 'host.js'],
   ['/watch.js', 'watch.js'],

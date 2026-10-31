@@ -9,6 +9,10 @@ const volumeInput = document.getElementById('volume');
 const leaveBtn = document.getElementById('leave');
 const soundIcon = unmuteBtn.querySelector('.icon');
 const video = document.getElementById('remote');
+video.addEventListener('playing', () => {
+  if (!video.srcObject) return;
+  setStatus('No ar');
+});
 const viewerCountEl = document.getElementById('viewer-count');
 const VOLUME_START = 50;
 
@@ -65,18 +69,72 @@ function setVolume(level) {
   if (!video.muted) video.play().catch(() => {});
 }
 
+function playMuted(gen) {
+  if (gen !== generation || !video.srcObject) return Promise.resolve();
+  soundMuted = true;
+  renderSound();
+  const ensure = () => {
+    if (gen !== generation || !video.srcObject || !video.paused) return;
+    video.muted = true;
+    video.play().catch(() => {});
+  };
+  const started = video.play();
+  if (started) started.then(ensure).catch(ensure);
+  window.setTimeout(ensure, 500);
+  return started || Promise.resolve();
+}
+
 function beginHalfVolume() {
+  const gen = generation;
   volumeLevel = VOLUME_START;
+  video.volume = volumeLevel / 100;
+  video.muted = true;
+  const started = video.play();
+  if (!started) return;
+  started.then(() => {
+    if (gen !== generation || !video.srcObject) return;
+    return trySound(gen);
+  }).catch(() => playMuted(gen));
+}
+
+function trySound(gen) {
+  if (gen !== generation || !video.srcObject) return;
+  let settled = false;
+  const finish = () => {
+    if (settled) return false;
+    settled = true;
+    video.removeEventListener('pause', onPause);
+    return true;
+  };
+  const onPause = () => {
+    if (!finish() || gen !== generation || !video.srcObject) return;
+    playMuted(gen);
+  };
+  video.addEventListener('pause', onPause);
   soundMuted = false;
   renderSound();
-  const playing = video.play();
-  if (!playing) return;
-  playing.then(() => {
-    soundMuted = false;
-    renderSound();
+  return video.play().then(() => {
+    if (gen !== generation || !video.srcObject) {
+      finish();
+      return;
+    }
+    if (video.paused || video.muted) {
+      if (finish()) playMuted(gen);
+      return;
+    }
+    window.setTimeout(() => {
+      if (gen !== generation) {
+        finish();
+        return;
+      }
+      if (video.paused) {
+        if (finish()) playMuted(gen);
+        return;
+      }
+      finish();
+    }, 400);
   }).catch(() => {
-    soundMuted = true;
-    renderSound();
+    if (finish()) playMuted(gen);
   });
 }
 
@@ -175,10 +233,12 @@ function createPc() {
     const remote = event.streams[0];
     if (remote) {
       if (video.srcObject !== remote) {
+        video.muted = true;
         video.srcObject = remote;
         beginHalfVolume();
       }
     } else if (!video.srcObject) {
+      video.muted = true;
       video.srcObject = new MediaStream([event.track]);
       beginHalfVolume();
     } else if (!video.srcObject.getTracks().includes(event.track)) {
@@ -194,8 +254,6 @@ function createPc() {
       renderSound();
       setStatus('Esperando a transmissão');
     });
-    video.play().catch(() => {});
-    setStatus('No ar');
   };
 }
 

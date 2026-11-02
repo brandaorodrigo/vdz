@@ -1,12 +1,6 @@
 'use strict';
 
-const ICE_SERVERS = [{
-  urls: [
-    'stun:stun.l.google.com:19302',
-    'stun:stun1.l.google.com:19302',
-    'stun:stun.cloudflare.com:3478'
-  ]
-}];
+const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 const PING_MS = 4 * 60 * 1000;
 const BITRATES = new Map([
   ['480:30', 500_000],
@@ -170,10 +164,7 @@ function closePeer(viewerId) {
   const entry = peers.get(viewerId);
   if (!entry) return;
   peers.delete(viewerId);
-  if (entry.timer) clearTimeout(entry.timer);
   entry.pc.onicecandidate = null;
-  entry.pc.oniceconnectionstatechange = null;
-  entry.pc.onconnectionstatechange = null;
   try {
     entry.pc.close();
   } catch {
@@ -339,30 +330,27 @@ function onSignal(msg) {
 async function applyRemote(entry, data) {
   if (data.kind === 'answer' && typeof data.sdp === 'string') {
     await entry.pc.setRemoteDescription({ type: 'answer', sdp: data.sdp });
-    entry.acceptIce = true;
-    flushCandidates(entry);
+    await flushCandidates(entry);
     return;
   }
   if (data.kind === 'ice') {
-    if (!entry.acceptIce || !entry.pc.remoteDescription) {
+    if (!entry.pc.remoteDescription) {
       entry.queue.push(data.candidate);
       return;
     }
-    addCandidate(entry.pc, data.candidate);
+    await addCandidate(entry.pc, data.candidate);
   }
 }
 
-function flushCandidates(entry) {
+async function flushCandidates(entry) {
   const queued = entry.queue.splice(0);
-  for (const candidate of queued) addCandidate(entry.pc, candidate);
+  for (const candidate of queued) await addCandidate(entry.pc, candidate);
 }
 
-function addCandidate(pc, candidate) {
-  if (!pc) return;
+async function addCandidate(pc, candidate) {
+  if (!candidate) return;
   try {
-    pc.addIceCandidate(candidate).catch((error) => {
-      console.error(error);
-    });
+    await pc.addIceCandidate(candidate);
   } catch (error) {
     console.error(error);
   }
@@ -402,143 +390,15 @@ async function pushQuality() {
   }));
 }
 
-function waitForIce(conn, ms) {
-  if (!conn || conn.iceGatheringState === 'complete') return Promise.resolve();
-  return new Promise((resolve) => {
-    const finish = () => {
-      clearTimeout(timer);
-      conn.removeEventListener('icegatheringstatechange', onState);
-      resolve();
-    };
-    const onState = () => {
-      if (conn.iceGatheringState === 'complete') finish();
-    };
-    const timer = setTimeout(finish, ms);
-    conn.addEventListener('icegatheringstatechange', onState);
-    if (conn.iceGatheringState === 'complete') finish();
-  });
-}
-
-function preferVideoCodecs(transceiver) {
-  if (!transceiver || typeof RTCRtpSender === 'undefined' || !RTCRtpSender.getCapabilities) return;
-  const caps = RTCRtpSender.getCapabilities('video');
-  if (!caps || !caps.codecs || !transceiver.setCodecPreferences) return;
-  const preferred = ['video/vp8', 'video/h264', 'video/vp9'];
-  const ranked = [];
-  for (const name of preferred) {
-    for (const codec of caps.codecs) {
-      if (codec.mimeType.toLowerCase() === name) ranked.push(codec);
-    }
-  }
-  for (const codec of caps.codecs) {
-    const mime = codec.mimeType.toLowerCase();
-    if (mime === 'video/rtx' || mime === 'video/red' || mime === 'video/ulpfec') ranked.push(codec);
-  }
-  if (!ranked.length) return;
-  try {
-    transceiver.setCodecPreferences(ranked);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-function scheduleHostRetry(entry, viewerId) {
-  if (entry.timer) clearTimeout(entry.timer);
-  entry.timer = setTimeout(() => {
-    entry.timer = null;
-    if (peers.get(viewerId) !== entry || !viewers.has(viewerId)) return;
-    const ice = entry.pc.iceConnectionState;
-    if (ice === 'connected' || ice === 'completed') return;
-    if (entry.restarting) {
-      scheduleHostRetry(entry, viewerId);
-      return;
-    }
-    if (entry.pc.signalingState !== 'stable' || entry.restarts >= 2) {
-      const attempt = entry.attempt || 1;
-      closePeer(viewerId);
-      if (attempt >= 3 || !localStream || !viewers.has(viewerId)) return;
-      offerTo(viewerId, attempt + 1);
-      return;
-    }
-    restartOffer(entry, viewerId);
-  }, 15000);
-}
-
-function onPeerIce(entry, viewerId) {
-  if (peers.get(viewerId) !== entry) return;
-  const ice = entry.pc.iceConnectionState;
-  const conn = entry.pc.connectionState;
-  if (ice === 'connected' || ice === 'completed' || conn === 'connected') {
-    entry.restarts = 0;
-    if (entry.timer) {
-      clearTimeout(entry.timer);
-      entry.timer = null;
-    }
-    return;
-  }
-  if (ice === 'disconnected' || conn === 'disconnected') {
-    if (!entry.timer) scheduleHostRetry(entry, viewerId);
-    return;
-  }
-  if (ice !== 'failed' && conn !== 'failed') return;
-  restartOffer(entry, viewerId);
-}
-
-async function publishLocalOffer(entry, viewerId) {
-  await waitForIce(entry.pc, 1500);
-  if (peers.get(viewerId) !== entry) return false;
-  send({
-    type: 'signal',
-    to: viewerId,
-    data: { kind: 'offer', sdp: entry.pc.localDescription.sdp }
-  });
-  entry.iceOpen = true;
-  for (const data of entry.iceBuffer.splice(0)) {
-    send({ type: 'signal', to: viewerId, data });
-  }
-  scheduleHostRetry(entry, viewerId);
-  return true;
-}
-
-async function restartOffer(entry, viewerId) {
-  if (peers.get(viewerId) !== entry || entry.restarting || entry.restarts >= 2) return;
-  if (entry.pc.signalingState !== 'stable') return;
-  entry.restarting = true;
-  entry.restarts += 1;
-  entry.acceptIce = false;
-  entry.queue = [];
-  entry.iceOpen = false;
-  entry.iceBuffer = [];
-  try {
-    entry.pc.restartIce();
-    const offer = await entry.pc.createOffer({ iceRestart: true });
-    if (peers.get(viewerId) !== entry) return;
-    await entry.pc.setLocalDescription(offer);
-    if (peers.get(viewerId) !== entry) return;
-    await publishLocalOffer(entry, viewerId);
-  } catch (error) {
-    console.error(error);
-    if (peers.get(viewerId) === entry && entry.pc.remoteDescription) entry.acceptIce = true;
-  } finally {
-    if (peers.get(viewerId) === entry) entry.restarting = false;
-  }
-}
-
-async function offerTo(viewerId, attempt) {
-  const turn = attempt || 1;
-  if (!localStream || !viewers.has(viewerId) || peers.has(viewerId) || turn > 3) return;
+async function offerTo(viewerId) {
+  if (!localStream || !viewers.has(viewerId) || peers.has(viewerId)) return;
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   const entry = {
     pc,
     queue: [],
     chain: Promise.resolve(),
     iceBuffer: [],
-    iceOpen: false,
-    acceptIce: false,
-    restarts: 0,
-    restarting: false,
-    timer: null,
-    attempt: turn
+    iceOpen: false
   };
   peers.set(viewerId, entry);
   pc.onicecandidate = (event) => {
@@ -549,23 +409,16 @@ async function offerTo(viewerId, attempt) {
     }
     send({ type: 'signal', to: viewerId, data });
   };
-  pc.oniceconnectionstatechange = () => onPeerIce(entry, viewerId);
-  pc.onconnectionstatechange = () => onPeerIce(entry, viewerId);
 
-  let sent = false;
   try {
     const videoTrack = localStream.getVideoTracks()[0];
-    if (!videoTrack) {
-      closePeer(viewerId);
-      return;
-    }
+    if (!videoTrack) return;
     const audioTrack = localStream.getAudioTracks()[0] || null;
     const videoTransceiver = pc.addTransceiver(videoTrack, {
       direction: 'sendonly',
       streams: [localStream],
       sendEncodings: [{ maxBitrate: chosenBitrate(), maxFramerate: chosenFrameRate() }]
     });
-    preferVideoCodecs(videoTransceiver);
     const audioTransceiver = audioTrack
       ? pc.addTransceiver(audioTrack, { direction: 'sendonly', streams: [localStream] })
       : pc.addTransceiver('audio', { direction: 'sendonly' });
@@ -581,10 +434,18 @@ async function offerTo(viewerId, attempt) {
       console.error(error);
     }
     if (peers.get(viewerId) !== entry) return;
-    sent = await publishLocalOffer(entry, viewerId);
+    send({
+      type: 'signal',
+      to: viewerId,
+      data: { kind: 'offer', sdp: pc.localDescription.sdp }
+    });
+    entry.iceOpen = true;
+    for (const data of entry.iceBuffer.splice(0)) {
+      send({ type: 'signal', to: viewerId, data });
+    }
   } catch (error) {
     console.error(error);
-    if (!sent) closePeer(viewerId);
+    closePeer(viewerId);
   }
 }
 
@@ -763,25 +624,15 @@ async function pushTracks(videoTrack, audioTrack) {
 }
 
 async function renegotiate(entry, viewerId) {
-  if (!entry.pc || peers.get(viewerId) !== entry || entry.restarting) return;
-  if (entry.pc.signalingState !== 'stable') return;
-  entry.restarting = true;
-  entry.acceptIce = false;
-  entry.queue = [];
-  entry.iceOpen = false;
-  entry.iceBuffer = [];
-  try {
-    const offer = await entry.pc.createOffer();
-    if (peers.get(viewerId) !== entry) return;
-    await entry.pc.setLocalDescription(offer);
-    if (peers.get(viewerId) !== entry) return;
-    await publishLocalOffer(entry, viewerId);
-  } catch (error) {
-    console.error(error);
-    if (peers.get(viewerId) === entry && entry.pc.remoteDescription) entry.acceptIce = true;
-  } finally {
-    if (peers.get(viewerId) === entry) entry.restarting = false;
-  }
+  if (!entry.pc || entry.pc.signalingState !== 'stable') return;
+  const offer = await entry.pc.createOffer();
+  if (peers.get(viewerId) !== entry) return;
+  await entry.pc.setLocalDescription(offer);
+  send({
+    type: 'signal',
+    to: viewerId,
+    data: { kind: 'offer', sdp: entry.pc.localDescription.sdp }
+  });
 }
 
 async function startCapture() {

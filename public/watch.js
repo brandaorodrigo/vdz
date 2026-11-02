@@ -1,12 +1,6 @@
 'use strict';
 
-const ICE_SERVERS = [{
-  urls: [
-    'stun:stun.l.google.com:19302',
-    'stun:stun1.l.google.com:19302',
-    'stun:stun.cloudflare.com:3478'
-  ]
-}];
+const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 const PING_MS = 4 * 60 * 1000;
 
 const statusEl = document.getElementById('status');
@@ -15,14 +9,10 @@ const volumeInput = document.getElementById('volume');
 const leaveBtn = document.getElementById('leave');
 const soundIcon = unmuteBtn.querySelector('.icon');
 const video = document.getElementById('remote');
-video.addEventListener('playing', notePlayback);
-video.addEventListener('timeupdate', notePlayback);
-video.addEventListener('resize', () => {
-  ensurePlaying();
-  notePlayback();
+video.addEventListener('playing', () => {
+  if (!video.srcObject) return;
+  setStatus('No ar');
 });
-video.addEventListener('canplay', ensurePlaying);
-video.addEventListener('loadeddata', ensurePlaying);
 const viewerCountEl = document.getElementById('viewer-count');
 const VOLUME_START = 50;
 
@@ -30,81 +20,17 @@ let ws = null;
 let pc = null;
 let hostId = null;
 let iceQueue = [];
-let remoteReady = false;
-let offerEpoch = 0;
-let holdLocalIce = () => {};
 let releaseLocalIce = () => {};
 let generation = 0;
 let chain = Promise.resolve();
 let reconnectTimer = null;
 let reconnectAttempt = 0;
 let pingTimer = null;
-let mediaTimer = null;
-let recoveries = 0;
-let playNudges = 0;
-let hearing = false;
 let volumeLevel = VOLUME_START;
 let soundMuted = false;
 
 function setStatus(text) {
   statusEl.hidden = text === 'No ar';
-}
-
-function notePlayback() {
-  if (!video.srcObject || video.paused || video.videoWidth <= 0) return;
-  recoveries = 0;
-  playNudges = 0;
-  clearMediaTimer();
-  setStatus('No ar');
-}
-
-function clearMediaTimer() {
-  if (!mediaTimer) return;
-  clearTimeout(mediaTimer);
-  mediaTimer = null;
-}
-
-function armReconnect(extended) {
-  clearMediaTimer();
-  const gen = generation;
-  mediaTimer = setTimeout(() => {
-    mediaTimer = null;
-    reconnectIfStuck(gen, Boolean(extended));
-  }, extended ? 8000 : 12000);
-}
-
-function reconnectIfStuck(gen, extended) {
-  if (gen !== generation) return;
-  if (document.hidden) {
-    armReconnect(true);
-    return;
-  }
-  if (video.srcObject && !video.paused && video.videoWidth > 0) {
-    notePlayback();
-    return;
-  }
-  const ice = pc && pc.iceConnectionState;
-  if (ice === 'connected' || ice === 'completed') {
-    ensurePlaying();
-    if (!video.paused && video.videoWidth > 0) return;
-    if (!video.paused && video.videoWidth <= 0 && playNudges >= 3 && recoveries < 5) {
-      recoveries += 1;
-      playNudges = 0;
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-      return;
-    }
-    if (playNudges >= 4) return;
-    playNudges += 1;
-    armReconnect(true);
-    return;
-  }
-  if (!extended && (ice === 'checking' || ice === 'disconnected')) {
-    armReconnect(true);
-    return;
-  }
-  if (recoveries >= 5) return;
-  recoveries += 1;
-  if (ws && ws.readyState === WebSocket.OPEN) ws.close();
 }
 
 function setViewerCount(count) {
@@ -158,35 +84,21 @@ function playMuted(gen) {
   return started || Promise.resolve();
 }
 
-function ensurePlaying() {
+function beginHalfVolume() {
   const gen = generation;
-  if (gen !== generation || !video.srcObject) return;
-  if (hearing) {
-    if (video.paused) playMuted(gen);
-    else notePlayback();
-    return;
-  }
-  if (!video.paused && video.readyState >= 2) {
-    notePlayback();
-    trySound(gen);
-    return;
-  }
+  volumeLevel = VOLUME_START;
+  video.volume = volumeLevel / 100;
   video.muted = true;
   const started = video.play();
   if (!started) return;
   started.then(() => {
     if (gen !== generation || !video.srcObject) return;
-    notePlayback();
-    if (hearing || video.paused) return;
-    trySound(gen);
-  }).catch(() => {
-    if (gen === generation) playMuted(gen);
-  });
+    return trySound(gen);
+  }).catch(() => playMuted(gen));
 }
 
 function trySound(gen) {
-  if (gen !== generation || !video.srcObject || hearing) return;
-  hearing = true;
+  if (gen !== generation || !video.srcObject) return;
   let settled = false;
   const finish = () => {
     if (settled) return false;
@@ -273,12 +185,7 @@ function later(fn) {
 
 function closePc() {
   generation += 1;
-  offerEpoch += 1;
   iceQueue = [];
-  remoteReady = false;
-  hearing = false;
-  clearMediaTimer();
-  holdLocalIce = () => {};
   releaseLocalIce = () => {};
   hostId = null;
   if (pc) {
@@ -302,12 +209,6 @@ function createPc() {
   const localIce = [];
   let iceOpen = false;
   pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-
-  holdLocalIce = () => {
-    if (gen !== generation) return;
-    iceOpen = false;
-    localIce.splice(0);
-  };
 
   releaseLocalIce = () => {
     if (gen !== generation) return;
@@ -334,26 +235,21 @@ function createPc() {
       if (video.srcObject !== remote) {
         video.muted = true;
         video.srcObject = remote;
+        beginHalfVolume();
       }
     } else if (!video.srcObject) {
       video.muted = true;
       video.srcObject = new MediaStream([event.track]);
+      beginHalfVolume();
     } else if (!video.srcObject.getTracks().includes(event.track)) {
       video.srcObject.addTrack(event.track);
     }
-    const kick = () => {
-      if (gen !== generation) return;
-      ensurePlaying();
-    };
-    event.track.addEventListener('unmute', kick);
-    kick();
     event.track.addEventListener('ended', () => {
       if (gen !== generation || event.track.kind !== 'video') return;
       const stream = video.srcObject;
       const live = stream && stream.getVideoTracks().some((track) => track.readyState === 'live');
       if (live) return;
       video.srcObject = null;
-      hearing = false;
       soundMuted = true;
       renderSound();
       setStatus('Esperando a transmissão');
@@ -361,87 +257,50 @@ function createPc() {
   };
 }
 
-function waitForIce(conn, ms) {
-  if (!conn || conn.iceGatheringState === 'complete') return Promise.resolve();
-  return new Promise((resolve) => {
-    const finish = () => {
-      clearTimeout(timer);
-      conn.removeEventListener('icegatheringstatechange', onState);
-      resolve();
-    };
-    const onState = () => {
-      if (conn.iceGatheringState === 'complete') finish();
-    };
-    const timer = setTimeout(finish, ms);
-    conn.addEventListener('icegatheringstatechange', onState);
-    if (conn.iceGatheringState === 'complete') finish();
-  });
-}
-
-function addCandidate(candidate) {
-  const current = pc;
-  if (!current) return;
+async function addCandidate(candidate) {
+  if (!candidate || !pc) return;
   try {
-    current.addIceCandidate(candidate).catch((error) => {
-      console.error(error);
-    });
+    await pc.addIceCandidate(candidate);
   } catch (error) {
     console.error(error);
   }
 }
 
-function flushCandidates() {
+async function flushCandidates() {
   const queued = iceQueue.splice(0);
-  for (const candidate of queued) addCandidate(candidate);
-}
-
-function queueIce(candidate) {
-  if (!remoteReady || !pc || !pc.remoteDescription) {
-    iceQueue.push(candidate);
-    return;
-  }
-  addCandidate(candidate);
+  for (const candidate of queued) await addCandidate(candidate);
 }
 
 function onSignal(msg) {
   if (!msg.data) return;
-  if (msg.data.kind === 'ice') {
-    queueIce(msg.data.candidate);
-    return;
-  }
-  if (msg.data.kind !== 'offer' || typeof msg.data.sdp !== 'string' || typeof msg.from !== 'string') return;
-  offerEpoch += 1;
-  const epoch = offerEpoch;
   const gen = generation;
-  remoteReady = false;
-  iceQueue = [];
-  clearMediaTimer();
-  holdLocalIce();
   later(async () => {
     const current = pc;
-    if (!current || gen !== generation || epoch !== offerEpoch) return;
-    try {
+    if (!current || gen !== generation) return;
+    const data = msg.data;
+    if (data.kind === 'offer' && typeof data.sdp === 'string' && typeof msg.from === 'string') {
       hostId = msg.from;
-      await current.setRemoteDescription({ type: 'offer', sdp: msg.data.sdp });
-      if (gen !== generation || pc !== current || epoch !== offerEpoch) return;
+      await current.setRemoteDescription({ type: 'offer', sdp: data.sdp });
+      if (gen !== generation || pc !== current) return;
       const answer = await current.createAnswer();
-      if (gen !== generation || pc !== current || epoch !== offerEpoch) return;
+      if (gen !== generation || pc !== current) return;
       await current.setLocalDescription(answer);
-      if (gen !== generation || pc !== current || epoch !== offerEpoch) return;
-      await waitForIce(current, 1500);
-      if (gen !== generation || pc !== current || epoch !== offerEpoch) return;
+      if (gen !== generation || pc !== current) return;
       send({
         type: 'signal',
         to: hostId,
         data: { kind: 'answer', sdp: current.localDescription.sdp }
       });
-      remoteReady = true;
       releaseLocalIce();
-      flushCandidates();
-      armReconnect(false);
-    } catch (error) {
-      console.error(error);
-      if (gen === generation && epoch === offerEpoch) reconnectIfStuck(gen, true);
+      await flushCandidates();
+      return;
+    }
+    if (data.kind === 'ice') {
+      if (!current.remoteDescription) {
+        iceQueue.push(data.candidate);
+        return;
+      }
+      await addCandidate(data.candidate);
     }
   });
 }
@@ -540,15 +399,6 @@ function leaveWatch() {
 }
 
 leaveBtn.addEventListener('click', leaveWatch);
-
-document.querySelector('.stage').addEventListener('pointerdown', () => {
-  if (!video.srcObject) return;
-  ensurePlaying();
-});
-
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) ensurePlaying();
-});
 
 const playerMenu = document.getElementById('player-menu');
 if (window.matchMedia('(hover: none)').matches) {

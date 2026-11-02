@@ -65,7 +65,7 @@ O transmissor manda `leave` ao encerrar e ao sair da página. O nome fica livre 
 
 ## WebRTC
 
-STUN `stun:stun.l.google.com:19302`. Sem TURN.
+STUN `stun:stun.l.google.com:19302`, `stun:stun1.l.google.com:19302` e `stun:stun.cloudflare.com:3478`. Sem TURN. A oferta espera até 1,5 s pelos candidatos e, se o caminho não abrir, o transmissor refaz a oferta. Quem assiste entra de novo se a imagem não começar.
 
 O transmissor cria um `RTCPeerConnection` por assistindo. Se a captura ainda não começou, a oferta sai quando a janela for escolhida. Trocar de janela substitui os trilhos sem derrubar a sala.
 

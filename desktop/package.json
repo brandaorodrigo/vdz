@@ -1,6 +1,6 @@
 {
   "name": "vdz-desktop",
-  "version": "1.2.0",
+  "version": "1.12",
   "private": true,
   "productName": "vdz",
   "description": "transmissor desktop do vdz",
@@ -37,6 +37,7 @@
     ],
     "win": {
       "icon": "../public/android-chrome-512x512.png",
+      "artifactName": "vdz_${version}.${ext}",
       "extraResources": [
         {
           "from": "loopback/publish/vdz-loopback.exe",

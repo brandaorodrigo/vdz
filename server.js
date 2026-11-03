@@ -46,8 +46,8 @@ const TYPES = new Map([
 ]);
 
 const SETUPS = new Map([
-  ['/vdz_1.2.0.exe', 'vdz_1.2.0.exe'],
-  ['/vdz_1.2.0.AppImage', 'vdz_1.2.0.AppImage']
+  ['/vdz_1.12.exe', 'vdz_1.12.exe'],
+  ['/vdz_1.12.AppImage', 'vdz_1.12.AppImage']
 ]);
 const rooms = new Map();
 const waiting = new Map();

@@ -12,7 +12,7 @@ A interface é em português. O servidor só apresenta as pessoas. O vídeo e o 
 - Sala é só letras minúsculas, de 1 a 32. O campo da tela limita a 10.
 - Cada assistindo recebe a própria conexão com o transmissor. Não reenviar de um assistindo para outro.
 - Mudança só em `public/` não pede recompilar o Electron. O aplicativo abre o site ao vivo. Recompilar quando mudar `desktop/main.js`, `desktop/preload.js` ou o executável do loopback.
-- O instalador Windows servido no site é `public/vdz_1.2.0.exe`. O do Linux é `public/vdz_1.2.0.AppImage`. O build novo fica em `desktop/dist/` até alguém copiar para `public/`.
+- O instalador Windows servido no site é `public/vdz_1.12.exe`. O do Linux é `public/vdz_1.12.AppImage`. O build novo fica em `desktop/dist/` até alguém copiar para `public/`.
 
 ## Pastas
 
@@ -39,8 +39,8 @@ Estado só na memória. Reiniciar o processo apaga as salas.
 | `/nome` | `watch.html`, se o nome for `^[a-z]{1,32}$` e não for `host` nem `watch` |
 | `/api/rooms` | JSON `{ "rooms": ["nome"] }`, salas em uso, sem cache |
 | `/health` | texto `ok` |
-| `/vdz_1.2.0.exe` | o instalador Windows de `public/`, como anexo |
-| `/vdz_1.2.0.AppImage` | o instalador Linux de `public/`, como anexo |
+| `/vdz_1.12.exe` | o instalador Windows de `public/`, como anexo |
+| `/vdz_1.12.AppImage` | o instalador Linux de `public/`, como anexo |
 | `/ws` | WebSocket |
 
 Arquivos de `public/` saem de uma lista branca em `server.js`. Página nova ou script novo precisa entrar nessa lista. `/host` e `/watch` têm de ser resolvidos antes do padrão da sala.
@@ -89,7 +89,7 @@ No Electron, o vídeo é a janela escolhida no seletor próprio. O áudio é o p
 
 Fonte Google Sans e ícones Material Icons, ambos do Google Fonts. Fundo `#1a1917`.
 
-`/` tem o botão Assistir, que abre `/1`, e embaixo o botão Transmitir, que abre `/host`. No navegador, o aviso de que o áudio não sai de forma adequada fica visível o tempo todo, e abaixo ficam os ícones Windows (`/vdz_1.2.0.exe`), Linux (`/vdz_1.2.0.AppImage`) e GitHub (https://github.com/brandaorodrigo/vdz). No Electron, a frase e esses ícones não aparecem.
+`/` tem o botão Assistir, que abre `/1`, e embaixo o botão Transmitir, que abre `/host`. No rodapé, `v.1.12`, no navegador e no Electron, no computador e no celular. No navegador, o aviso de que o áudio não sai de forma adequada fica visível o tempo todo, e abaixo ficam os ícones Windows (`/vdz_1.12.exe`), Linux (`/vdz_1.12.AppImage`) e GitHub (https://github.com/brandaorodrigo/vdz). No Electron, a frase e esses ícones não aparecem.
 
 `/watch` lista os nomes em uso, atualiza a cada 5 segundos, e cada nome aponta para `/nome`.
 
@@ -101,7 +101,7 @@ Fonte Google Sans e ícones Material Icons, ambos do Google Fonts. Fundo `#1a191
 
 ## Electron
 
-Windows x64 e Linux x64, Electron 35.7.5, produto `vdz` 1.2.0, id `app.vdz.desktop`. Abre `origem + /`. A origem padrão é `https://vdz.onrender.com`. `--url=` ou `VDZ_URL` trocam isso.
+Windows x64 e Linux x64, Electron 35.7.5, produto `vdz` 1.12, id `app.vdz.desktop`. Abre `origem + /`. A origem padrão é `https://vdz.onrender.com`. `--url=` ou `VDZ_URL` trocam isso.
 
 O preload expõe `vdzDesktop.listWindows`, `arm`, `beginAudio`, `stopAudio` e `onPcm`.
 
@@ -112,7 +112,7 @@ npm install
 npm run build
 ```
 
-Isso publica o loopback em `desktop/loopback/publish/` e gera o instalador NSIS em `desktop/dist/`. O AppImage sai de `npm run build:linux` numa máquina Linux, em `desktop/dist/vdz_1.2.0.AppImage`, e não usa o loopback. Idiomas do Chromium: `pt-BR` e `en-US`. Compressão máxima. O ícone da janela e do instalador é `public/android-chrome-512x512.png`.
+Isso publica o loopback em `desktop/loopback/publish/` e gera o instalador NSIS em `desktop/dist/`. O AppImage sai de `npm run build:linux` numa máquina Linux, em `desktop/dist/vdz_1.12.AppImage`, e não usa o loopback. Idiomas do Chromium: `pt-BR` e `en-US`. Compressão máxima. O ícone da janela e do instalador é `public/android-chrome-512x512.png`.
 
 Para testar contra o servidor local: `VDZ_URL=http://127.0.0.1:3000` antes de `npm start` em `desktop/`.
 

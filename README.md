@@ -44,7 +44,7 @@ npm install
 VDZ_URL=http://127.0.0.1:3000 npm start
 ```
 
-O instalador do Windows é gerado com `npm run build` dentro de `desktop/`. O AppImage do Linux sai de `npm run build:linux` numa máquina Linux. Os arquivos publicados no site são `public/vdz_1.2.0.exe` e `public/vdz_1.2.0.AppImage`.
+O instalador do Windows é gerado com `npm run build` dentro de `desktop/`. O AppImage do Linux sai de `npm run build:linux` numa máquina Linux. Os arquivos publicados no site são `public/vdz_1.12.exe` e `public/vdz_1.12.AppImage`.
 
 ## Render
 

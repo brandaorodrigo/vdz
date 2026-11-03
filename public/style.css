@@ -120,14 +120,10 @@ html.desktop .home-links {
   display: none;
 }
 
-body.home {
-  padding-bottom: 2.5rem;
-}
-
 .home-version {
   position: fixed;
   right: 0;
-  bottom: 0;
+  bottom: 40px;
   left: 0;
   z-index: 2;
   margin: 0;

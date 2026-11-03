@@ -11,6 +11,7 @@ const soundIcon = unmuteBtn.querySelector('.icon');
 const video = document.getElementById('remote');
 video.addEventListener('playing', () => {
   if (!video.srcObject) return;
+  noteMediaUp();
   setStatus('No ar');
 });
 const viewerCountEl = document.getElementById('viewer-count');
@@ -28,6 +29,10 @@ let reconnectAttempt = 0;
 let pingTimer = null;
 let volumeLevel = VOLUME_START;
 let soundMuted = false;
+let offerSeen = false;
+let socketRetryTimer = null;
+let reopenNow = false;
+const VIEWER_STALL_MS = 25000;
 
 function setStatus(text) {
   statusEl.hidden = text === 'No ar';
@@ -183,20 +188,90 @@ function later(fn) {
   });
 }
 
+function peerIsUp(target) {
+  if (!target) return false;
+  const ice = target.iceConnectionState;
+  if (ice === 'connected' || ice === 'completed') return true;
+  return target.connectionState === 'connected';
+}
+
+function mediaIsUp() {
+  return peerIsUp(pc);
+}
+
+function noteMediaUp() {
+  if (socketRetryTimer) {
+    clearTimeout(socketRetryTimer);
+    socketRetryTimer = null;
+  }
+}
+
+function sdpLine(sdp, prefix) {
+  if (typeof sdp !== 'string') return '';
+  const line = sdp.split(/\r?\n/).find((item) => item.startsWith(prefix));
+  return line ? line.trim() : '';
+}
+
+function fingerprintChanged(current, sdp) {
+  if (!current || !current.remoteDescription) return false;
+  const prev = sdpLine(current.remoteDescription.sdp, 'a=fingerprint:');
+  const next = sdpLine(sdp, 'a=fingerprint:');
+  return Boolean(prev && next && prev !== next);
+}
+
+function armViewerStall(reset) {
+  if (!offerSeen && !reset) return;
+  offerSeen = true;
+  if (socketRetryTimer && !reset) return;
+  if (socketRetryTimer) {
+    clearTimeout(socketRetryTimer);
+    socketRetryTimer = null;
+  }
+  socketRetryTimer = setTimeout(() => {
+    socketRetryTimer = null;
+    if (mediaIsUp()) return;
+    reopenSignal();
+  }, VIEWER_STALL_MS);
+}
+
+function watchPc(target, gen) {
+  const onState = () => {
+    if (gen !== generation || pc !== target) return;
+    if (peerIsUp(target)) {
+      noteMediaUp();
+      return;
+    }
+    const conn = target.connectionState;
+    const ice = target.iceConnectionState;
+    if (conn === 'failed' || conn === 'disconnected' || ice === 'failed' || ice === 'disconnected') {
+      armViewerStall(false);
+    }
+  };
+  target.onconnectionstatechange = onState;
+  target.oniceconnectionstatechange = onState;
+}
+
+function detachPc(target) {
+  target.onicecandidate = null;
+  target.ontrack = null;
+  target.onconnectionstatechange = null;
+  target.oniceconnectionstatechange = null;
+  try {
+    target.close();
+  } catch {
+    // A conexão já estava encerrada.
+  }
+}
+
 function closePc() {
   generation += 1;
   iceQueue = [];
   releaseLocalIce = () => {};
   hostId = null;
   if (pc) {
-    pc.onicecandidate = null;
-    pc.ontrack = null;
-    try {
-      pc.close();
-    } catch {
-      // A conexão já estava encerrada.
-    }
+    const old = pc;
     pc = null;
+    detachPc(old);
   }
   video.srcObject = null;
   volumeLevel = VOLUME_START;
@@ -204,11 +279,41 @@ function closePc() {
   renderSound();
 }
 
+function replacePc() {
+  iceQueue = [];
+  releaseLocalIce = () => {};
+  if (pc) {
+    const old = pc;
+    pc = null;
+    detachPc(old);
+  }
+  video.srcObject = null;
+  setStatus('Esperando a transmissão');
+  createPc();
+}
+
+function reopenSignal() {
+  if (mediaIsUp()) return;
+  setStatus('Esperando a transmissão');
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (!ws || ws.readyState === WebSocket.CLOSED) {
+    connect();
+    return;
+  }
+  if (ws.readyState !== WebSocket.OPEN) return;
+  reopenNow = true;
+  ws.close();
+}
+
 function createPc() {
   const gen = generation;
   const localIce = [];
   let iceOpen = false;
   pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  watchPc(pc, gen);
 
   releaseLocalIce = () => {
     if (gen !== generation) return;
@@ -275,12 +380,26 @@ function onSignal(msg) {
   if (!msg.data) return;
   const gen = generation;
   later(async () => {
-    const current = pc;
-    if (!current || gen !== generation) return;
+    if (gen !== generation) return;
+    let current = pc;
     const data = msg.data;
     if (data.kind === 'offer' && typeof data.sdp === 'string' && typeof msg.from === 'string') {
       hostId = msg.from;
-      await current.setRemoteDescription({ type: 'offer', sdp: data.sdp });
+      armViewerStall(true);
+      if (!current || current.signalingState === 'closed' || current.connectionState === 'closed' || fingerprintChanged(current, data.sdp)) {
+        if (current) replacePc();
+        else createPc();
+        current = pc;
+      }
+      try {
+        await current.setRemoteDescription({ type: 'offer', sdp: data.sdp });
+      } catch (error) {
+        if (gen !== generation) return;
+        console.error(error);
+        replacePc();
+        current = pc;
+        await current.setRemoteDescription({ type: 'offer', sdp: data.sdp });
+      }
       if (gen !== generation || pc !== current) return;
       const answer = await current.createAnswer();
       if (gen !== generation || pc !== current) return;
@@ -293,9 +412,11 @@ function onSignal(msg) {
       });
       releaseLocalIce();
       await flushCandidates();
+      armViewerStall(true);
       return;
     }
     if (data.kind === 'ice') {
+      if (!current) return;
       if (!current.remoteDescription) {
         iceQueue.push(data.candidate);
         return;
@@ -306,6 +427,11 @@ function onSignal(msg) {
 }
 
 function waitForBroadcast() {
+  offerSeen = false;
+  if (socketRetryTimer) {
+    clearTimeout(socketRetryTimer);
+    socketRetryTimer = null;
+  }
   closePc();
   setStatus('Esperando a transmissão');
   setViewerCount(0);
@@ -378,7 +504,13 @@ function connect() {
   socket.onclose = () => {
     if (ws === socket) ws = null;
     stopPing();
+    const immediate = reopenNow;
+    reopenNow = false;
     waitForBroadcast();
+    if (immediate) {
+      connect();
+      return;
+    }
     scheduleReconnect();
   };
 }

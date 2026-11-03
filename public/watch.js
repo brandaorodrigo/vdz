@@ -4,6 +4,8 @@ const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 const PING_MS = 4 * 60 * 1000;
 
 const statusEl = document.getElementById('status');
+const idleIcon = document.getElementById('wait-idle');
+const bufferIcon = document.getElementById('wait-buffer');
 const unmuteBtn = document.getElementById('unmute');
 const volumeInput = document.getElementById('volume');
 const leaveBtn = document.getElementById('leave');
@@ -11,8 +13,11 @@ const soundIcon = unmuteBtn.querySelector('.icon');
 const video = document.getElementById('remote');
 video.addEventListener('playing', () => {
   if (!video.srcObject) return;
-  noteMediaUp();
   setStatus('No ar');
+});
+video.addEventListener('waiting', () => {
+  if (!video.srcObject || video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) return;
+  setStatus('Recebendo');
 });
 const viewerCountEl = document.getElementById('viewer-count');
 const VOLUME_START = 50;
@@ -29,13 +34,15 @@ let reconnectAttempt = 0;
 let pingTimer = null;
 let volumeLevel = VOLUME_START;
 let soundMuted = false;
-let offerSeen = false;
-let socketRetryTimer = null;
-let reopenNow = false;
-const VIEWER_STALL_MS = 25000;
 
 function setStatus(text) {
-  statusEl.hidden = text === 'No ar';
+  const live = text === 'No ar';
+  const buffering = text === 'Recebendo';
+  statusEl.hidden = live;
+  idleIcon.hidden = buffering;
+  bufferIcon.hidden = !buffering;
+  if (live) return;
+  statusEl.setAttribute('aria-label', buffering ? 'carregando a transmissão' : 'esperando a transmissão');
 }
 
 function setViewerCount(count) {
@@ -188,90 +195,20 @@ function later(fn) {
   });
 }
 
-function peerIsUp(target) {
-  if (!target) return false;
-  const ice = target.iceConnectionState;
-  if (ice === 'connected' || ice === 'completed') return true;
-  return target.connectionState === 'connected';
-}
-
-function mediaIsUp() {
-  return peerIsUp(pc);
-}
-
-function noteMediaUp() {
-  if (socketRetryTimer) {
-    clearTimeout(socketRetryTimer);
-    socketRetryTimer = null;
-  }
-}
-
-function sdpLine(sdp, prefix) {
-  if (typeof sdp !== 'string') return '';
-  const line = sdp.split(/\r?\n/).find((item) => item.startsWith(prefix));
-  return line ? line.trim() : '';
-}
-
-function fingerprintChanged(current, sdp) {
-  if (!current || !current.remoteDescription) return false;
-  const prev = sdpLine(current.remoteDescription.sdp, 'a=fingerprint:');
-  const next = sdpLine(sdp, 'a=fingerprint:');
-  return Boolean(prev && next && prev !== next);
-}
-
-function armViewerStall(reset) {
-  if (!offerSeen && !reset) return;
-  offerSeen = true;
-  if (socketRetryTimer && !reset) return;
-  if (socketRetryTimer) {
-    clearTimeout(socketRetryTimer);
-    socketRetryTimer = null;
-  }
-  socketRetryTimer = setTimeout(() => {
-    socketRetryTimer = null;
-    if (mediaIsUp()) return;
-    reopenSignal();
-  }, VIEWER_STALL_MS);
-}
-
-function watchPc(target, gen) {
-  const onState = () => {
-    if (gen !== generation || pc !== target) return;
-    if (peerIsUp(target)) {
-      noteMediaUp();
-      return;
-    }
-    const conn = target.connectionState;
-    const ice = target.iceConnectionState;
-    if (conn === 'failed' || conn === 'disconnected' || ice === 'failed' || ice === 'disconnected') {
-      armViewerStall(false);
-    }
-  };
-  target.onconnectionstatechange = onState;
-  target.oniceconnectionstatechange = onState;
-}
-
-function detachPc(target) {
-  target.onicecandidate = null;
-  target.ontrack = null;
-  target.onconnectionstatechange = null;
-  target.oniceconnectionstatechange = null;
-  try {
-    target.close();
-  } catch {
-    // A conexão já estava encerrada.
-  }
-}
-
 function closePc() {
   generation += 1;
   iceQueue = [];
   releaseLocalIce = () => {};
   hostId = null;
   if (pc) {
-    const old = pc;
+    pc.onicecandidate = null;
+    pc.ontrack = null;
+    try {
+      pc.close();
+    } catch {
+      // A conexão já estava encerrada.
+    }
     pc = null;
-    detachPc(old);
   }
   video.srcObject = null;
   volumeLevel = VOLUME_START;
@@ -279,41 +216,11 @@ function closePc() {
   renderSound();
 }
 
-function replacePc() {
-  iceQueue = [];
-  releaseLocalIce = () => {};
-  if (pc) {
-    const old = pc;
-    pc = null;
-    detachPc(old);
-  }
-  video.srcObject = null;
-  setStatus('Esperando a transmissão');
-  createPc();
-}
-
-function reopenSignal() {
-  if (mediaIsUp()) return;
-  setStatus('Esperando a transmissão');
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-  if (!ws || ws.readyState === WebSocket.CLOSED) {
-    connect();
-    return;
-  }
-  if (ws.readyState !== WebSocket.OPEN) return;
-  reopenNow = true;
-  ws.close();
-}
-
 function createPc() {
   const gen = generation;
   const localIce = [];
   let iceOpen = false;
   pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-  watchPc(pc, gen);
 
   releaseLocalIce = () => {
     if (gen !== generation) return;
@@ -380,27 +287,14 @@ function onSignal(msg) {
   if (!msg.data) return;
   const gen = generation;
   later(async () => {
-    if (gen !== generation) return;
-    let current = pc;
+    const current = pc;
+    if (!current || gen !== generation) return;
     const data = msg.data;
     if (data.kind === 'offer' && typeof data.sdp === 'string' && typeof msg.from === 'string') {
       hostId = msg.from;
-      armViewerStall(true);
-      if (!current || current.signalingState === 'closed' || current.connectionState === 'closed' || fingerprintChanged(current, data.sdp)) {
-        if (current) replacePc();
-        else createPc();
-        current = pc;
-      }
-      try {
-        await current.setRemoteDescription({ type: 'offer', sdp: data.sdp });
-      } catch (error) {
-        if (gen !== generation) return;
-        console.error(error);
-        replacePc();
-        current = pc;
-        await current.setRemoteDescription({ type: 'offer', sdp: data.sdp });
-      }
+      await current.setRemoteDescription({ type: 'offer', sdp: data.sdp });
       if (gen !== generation || pc !== current) return;
+      setStatus('Recebendo');
       const answer = await current.createAnswer();
       if (gen !== generation || pc !== current) return;
       await current.setLocalDescription(answer);
@@ -412,11 +306,9 @@ function onSignal(msg) {
       });
       releaseLocalIce();
       await flushCandidates();
-      armViewerStall(true);
       return;
     }
     if (data.kind === 'ice') {
-      if (!current) return;
       if (!current.remoteDescription) {
         iceQueue.push(data.candidate);
         return;
@@ -427,11 +319,6 @@ function onSignal(msg) {
 }
 
 function waitForBroadcast() {
-  offerSeen = false;
-  if (socketRetryTimer) {
-    clearTimeout(socketRetryTimer);
-    socketRetryTimer = null;
-  }
   closePc();
   setStatus('Esperando a transmissão');
   setViewerCount(0);
@@ -504,13 +391,7 @@ function connect() {
   socket.onclose = () => {
     if (ws === socket) ws = null;
     stopPing();
-    const immediate = reopenNow;
-    reopenNow = false;
     waitForBroadcast();
-    if (immediate) {
-      connect();
-      return;
-    }
     scheduleReconnect();
   };
 }

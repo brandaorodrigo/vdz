@@ -164,10 +164,7 @@ function closePeer(viewerId) {
   const entry = peers.get(viewerId);
   if (!entry) return;
   peers.delete(viewerId);
-  clearEntryTimers(entry);
   entry.pc.onicecandidate = null;
-  entry.pc.onconnectionstatechange = null;
-  entry.pc.oniceconnectionstatechange = null;
   try {
     entry.pc.close();
   } catch {
@@ -182,7 +179,6 @@ function closeAllPeers() {
 function teardownMedia() {
   stopStream();
   closeAllPeers();
-  clearAllRetries();
   viewers.clear();
 }
 
@@ -300,7 +296,6 @@ function onCreated(msg) {
   queuedCreate = false;
   phase = 'live';
   viewers.clear();
-  clearAllRetries();
   closeAllPeers();
   preview.hidden = true;
   showRoom();
@@ -317,7 +312,6 @@ function onViewerJoined(msg) {
 function onViewerLeft(msg) {
   if (typeof msg.viewerId !== 'string') return;
   viewers.delete(msg.viewerId);
-  clearRetry(msg.viewerId);
   closePeer(msg.viewerId);
 }
 
@@ -396,173 +390,6 @@ async function pushQuality() {
   }));
 }
 
-const RETRY_STALL_MS = 15000;
-const RETRY_DISCONNECT_MS = 5000;
-const retries = new Map();
-
-function canRetry(viewerId) {
-  return viewers.has(viewerId) && !!localStream && (phase === 'live' || phase === 'sharing');
-}
-
-function peerIsUp(pc) {
-  if (!pc) return false;
-  const ice = pc.iceConnectionState;
-  if (ice === 'connected' || ice === 'completed') return true;
-  return pc.connectionState === 'connected';
-}
-
-function peerIsNegotiating(pc) {
-  if (!pc || pc.connectionState === 'closed' || pc.signalingState === 'closed') return false;
-  if (pc.signalingState === 'have-local-offer') return true;
-  const ice = pc.iceConnectionState;
-  const conn = pc.connectionState;
-  return ice === 'new' || ice === 'checking' || conn === 'new' || conn === 'connecting';
-}
-
-function ensureRetry(viewerId) {
-  let state = retries.get(viewerId);
-  if (!state) {
-    state = { timer: null, attempt: 0, running: false, again: false };
-    retries.set(viewerId, state);
-  }
-  return state;
-}
-
-function clearRetry(viewerId) {
-  const state = retries.get(viewerId);
-  if (!state) return;
-  if (state.timer) clearTimeout(state.timer);
-  retries.delete(viewerId);
-}
-
-function clearAllRetries() {
-  for (const viewerId of [...retries.keys()]) clearRetry(viewerId);
-}
-
-function clearEntryTimers(entry) {
-  if (entry.stallTimer) clearTimeout(entry.stallTimer);
-  if (entry.disconnectTimer) clearTimeout(entry.disconnectTimer);
-  entry.stallTimer = null;
-  entry.disconnectTimer = null;
-}
-
-function notePeerUp(viewerId) {
-  const state = retries.get(viewerId);
-  if (state) {
-    if (state.timer) clearTimeout(state.timer);
-    state.timer = null;
-    state.attempt = 0;
-    state.again = false;
-  }
-  const entry = peers.get(viewerId);
-  if (!entry) return;
-  clearEntryTimers(entry);
-}
-
-function schedulePeerRetry(viewerId) {
-  if (!canRetry(viewerId)) return;
-  const entry = peers.get(viewerId);
-  if (entry && peerIsUp(entry.pc)) return;
-  if (entry && entry.disconnectTimer) {
-    clearTimeout(entry.disconnectTimer);
-    entry.disconnectTimer = null;
-  }
-  const state = ensureRetry(viewerId);
-  if (state.running) {
-    state.again = true;
-    return;
-  }
-  if (state.timer) return;
-  const delay = Math.min(RETRY_STALL_MS, 2000 * 2 ** Math.min(state.attempt, 4));
-  state.attempt += 1;
-  state.timer = setTimeout(() => {
-    state.timer = null;
-    retryPeer(viewerId);
-  }, delay);
-}
-
-function armStall(viewerId, entry) {
-  if (entry.stallTimer) clearTimeout(entry.stallTimer);
-  entry.stallTimer = setTimeout(() => {
-    entry.stallTimer = null;
-    if (peers.get(viewerId) !== entry) return;
-    if (peerIsUp(entry.pc)) return;
-    schedulePeerRetry(viewerId);
-  }, RETRY_STALL_MS);
-}
-
-function armDisconnect(viewerId, entry) {
-  if (entry.disconnectTimer) return;
-  entry.disconnectTimer = setTimeout(() => {
-    entry.disconnectTimer = null;
-    if (peers.get(viewerId) !== entry) return;
-    if (peerIsUp(entry.pc)) return;
-    const ice = entry.pc.iceConnectionState;
-    const conn = entry.pc.connectionState;
-    if (ice === 'disconnected' || conn === 'disconnected') schedulePeerRetry(viewerId);
-  }, RETRY_DISCONNECT_MS);
-}
-
-function watchPeer(viewerId, entry) {
-  const pc = entry.pc;
-  pc.onconnectionstatechange = () => {
-    if (peers.get(viewerId) !== entry) return;
-    if (peerIsUp(pc)) {
-      notePeerUp(viewerId);
-      return;
-    }
-    if (pc.connectionState === 'failed') schedulePeerRetry(viewerId);
-    if (pc.connectionState === 'disconnected') armDisconnect(viewerId, entry);
-  };
-  pc.oniceconnectionstatechange = () => {
-    if (peers.get(viewerId) !== entry) return;
-    if (peerIsUp(pc)) {
-      notePeerUp(viewerId);
-      return;
-    }
-    if (pc.iceConnectionState === 'failed') schedulePeerRetry(viewerId);
-    if (pc.iceConnectionState === 'disconnected') armDisconnect(viewerId, entry);
-  };
-}
-
-async function retryPeer(viewerId) {
-  const state = retries.get(viewerId);
-  if (!state || state.running) return;
-  if (!canRetry(viewerId)) return;
-  state.running = true;
-  state.again = false;
-  try {
-    let entry = peers.get(viewerId);
-    if (entry && peerIsUp(entry.pc)) return;
-    const replace = !entry
-      || entry.pc.signalingState !== 'stable'
-      || entry.pc.connectionState === 'closed'
-      || state.attempt % 3 === 0;
-    if (!replace) {
-      let sent = false;
-      try {
-        sent = await renegotiate(entry, viewerId, true);
-      } catch (error) {
-        console.error(error);
-      }
-      if (!canRetry(viewerId)) return;
-      if (sent && peers.get(viewerId) === entry) return;
-      if (peers.get(viewerId) !== entry) return;
-    }
-    if (!canRetry(viewerId)) return;
-    entry = peers.get(viewerId);
-    if (entry) closePeer(viewerId);
-    await offerTo(viewerId);
-  } finally {
-    state.running = false;
-    if (state.again && retries.get(viewerId) === state) {
-      state.again = false;
-      const current = peers.get(viewerId);
-      if (!current || !peerIsNegotiating(current.pc)) schedulePeerRetry(viewerId);
-    }
-  }
-}
-
 async function offerTo(viewerId) {
   if (!localStream || !viewers.has(viewerId) || peers.has(viewerId)) return;
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -571,12 +398,9 @@ async function offerTo(viewerId) {
     queue: [],
     chain: Promise.resolve(),
     iceBuffer: [],
-    iceOpen: false,
-    stallTimer: null,
-    disconnectTimer: null
+    iceOpen: false
   };
   peers.set(viewerId, entry);
-  watchPeer(viewerId, entry);
   pc.onicecandidate = (event) => {
     const data = { kind: 'ice', candidate: event.candidate };
     if (!entry.iceOpen) {
@@ -588,11 +412,7 @@ async function offerTo(viewerId) {
 
   try {
     const videoTrack = localStream.getVideoTracks()[0];
-    if (!videoTrack) {
-      closePeer(viewerId);
-      schedulePeerRetry(viewerId);
-      return;
-    }
+    if (!videoTrack) return;
     const audioTrack = localStream.getAudioTracks()[0] || null;
     const videoTransceiver = pc.addTransceiver(videoTrack, {
       direction: 'sendonly',
@@ -623,11 +443,9 @@ async function offerTo(viewerId) {
     for (const data of entry.iceBuffer.splice(0)) {
       send({ type: 'signal', to: viewerId, data });
     }
-    if (peers.get(viewerId) === entry) armStall(viewerId, entry);
   } catch (error) {
     console.error(error);
     closePeer(viewerId);
-    schedulePeerRetry(viewerId);
   }
 }
 
@@ -805,37 +623,16 @@ async function pushTracks(videoTrack, audioTrack) {
   await Promise.all(current.map((entry) => replaceOnPeer(entry, videoTrack, audioTrack)));
 }
 
-async function renegotiate(entry, viewerId, iceRestart) {
-  const pc = entry.pc;
-  if (!pc || pc.signalingState !== 'stable') return false;
-  const restart = !!iceRestart;
-  if (restart && typeof pc.restartIce === 'function') pc.restartIce();
-  if (restart) entry.queue = [];
-  entry.iceBuffer = [];
-  entry.iceOpen = false;
-  const offer = await pc.createOffer(restart ? { iceRestart: true } : undefined);
-  if (peers.get(viewerId) !== entry) return false;
-  await pc.setLocalDescription(offer);
-  if (peers.get(viewerId) !== entry) return false;
-  if (restart) {
-    try {
-      await capVideoBitrate(pc);
-    } catch (error) {
-      console.error(error);
-    }
-  }
-  if (peers.get(viewerId) !== entry) return false;
+async function renegotiate(entry, viewerId) {
+  if (!entry.pc || entry.pc.signalingState !== 'stable') return;
+  const offer = await entry.pc.createOffer();
+  if (peers.get(viewerId) !== entry) return;
+  await entry.pc.setLocalDescription(offer);
   send({
     type: 'signal',
     to: viewerId,
-    data: { kind: 'offer', sdp: pc.localDescription.sdp }
+    data: { kind: 'offer', sdp: entry.pc.localDescription.sdp }
   });
-  entry.iceOpen = true;
-  for (const data of entry.iceBuffer.splice(0)) {
-    send({ type: 'signal', to: viewerId, data });
-  }
-  armStall(viewerId, entry);
-  return true;
 }
 
 async function startCapture() {
@@ -907,16 +704,7 @@ async function startCapture() {
     }
     for (const viewerId of resumeIds) {
       const entry = peers.get(viewerId);
-      if (!entry) continue;
-      try {
-        const sent = await renegotiate(entry, viewerId);
-        if (sent) continue;
-      } catch (error) {
-        console.error(error);
-      }
-      if (!viewers.has(viewerId) || peers.get(viewerId) !== entry) continue;
-      closePeer(viewerId);
-      await offerTo(viewerId);
+      if (entry) await renegotiate(entry, viewerId);
     }
   }
 }

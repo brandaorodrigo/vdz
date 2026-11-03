@@ -18,7 +18,7 @@ function loopbackPath() {
   return path.join(__dirname, 'loopback', 'publish', 'vdz-loopback.exe');
 }
 
-let selectedSource = null;
+let selectedSourceId = null;
 const sourceCache = new Map();
 let audioChild = null;
 let audioQueue = Buffer.alloc(0);
@@ -200,12 +200,28 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => {
     callback(permission === 'media' || permission === 'display-capture' || permission === 'fullscreen');
   });
-  session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
-    if (!selectedSource) {
+  session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+    const sourceId = selectedSourceId;
+    if (!sourceId) {
       callback({});
       return;
     }
-    callback({ video: selectedSource });
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['window'],
+        thumbnailSize: { width: 160, height: 90 },
+        fetchWindowIcons: false
+      });
+      const match = sources.find((source) => source.id === sourceId);
+      if (!match) {
+        callback({});
+        return;
+      }
+      callback({ video: match });
+    } catch (error) {
+      console.error(error);
+      callback({});
+    }
   });
 
   ipcMain.handle('vdz-list-windows', async () => {
@@ -247,9 +263,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.on('vdz-arm', (event, sourceId) => {
-    const source = typeof sourceId === 'string' ? sourceCache.get(sourceId) : null;
-    selectedSource = source || null;
-    event.returnValue = !!source;
+    const known = typeof sourceId === 'string' && sourceCache.has(sourceId);
+    selectedSourceId = known ? sourceId : null;
+    event.returnValue = known;
   });
 
   ipcMain.handle('vdz-begin-audio', async (event, sourceId) => {

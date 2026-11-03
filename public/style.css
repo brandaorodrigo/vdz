@@ -491,6 +491,10 @@ body.watch .wait-icon {
   color: #5c574f;
 }
 
+body.watch .wait-icon[hidden] {
+  display: none;
+}
+
 .viewer-count {
   display: inline-flex;
   align-items: center;

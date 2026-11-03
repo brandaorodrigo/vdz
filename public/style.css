@@ -628,6 +628,7 @@ body.mosaic-page {
   left: 0;
   width: 100%;
   height: 100px;
+  pointer-events: none;
 }
 
 .top-menu-sensor {
@@ -636,12 +637,6 @@ body.mosaic-page {
 
 .player-menu-sensor {
   bottom: 0;
-}
-
-.top-menu:hover .top-menu-sensor,
-.top-menu:focus-within .top-menu-sensor,
-.top-menu.open .top-menu-sensor {
-  height: 5rem;
 }
 
 .top-menu-bar,
@@ -653,7 +648,9 @@ body.mosaic-page {
   padding: 1rem 1.5rem;
   background: var(--paper);
   border: 1px solid var(--line);
-  transition: transform 0.18s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.28s ease;
 }
 
 .top-menu-bar {
@@ -675,13 +672,12 @@ body.mosaic-page {
   transform: translate(-50%, calc(100% + 24px));
 }
 
-.top-menu:hover .top-menu-bar,
-.top-menu:focus-within .top-menu-bar,
-.top-menu.open .top-menu-bar,
-.player-menu:hover .player-menu-bar,
-.player-menu:focus-within .player-menu-bar,
-.player-menu.open .player-menu-bar {
+.top-menu.shown .top-menu-bar,
+.player-menu.shown .player-menu-bar {
+  opacity: 1;
+  pointer-events: auto;
   transform: translate(-50%, 0);
+  transition: transform 0.28s ease, opacity 0.18s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

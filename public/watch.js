@@ -414,11 +414,48 @@ function leaveWatch() {
 leaveBtn.addEventListener('click', leaveWatch);
 
 const playerMenu = document.getElementById('player-menu');
-if (window.matchMedia('(hover: none)').matches) {
-  playerMenu.addEventListener('pointerdown', (event) => {
-    if (event.target.closest('button, input')) return;
-    playerMenu.classList.toggle('open');
-  });
+const MENU_HIDE_MS = 2000;
+let menuTimer = null;
+let menuPointerDown = false;
+let lastParentNotice = 0;
+
+function notifyParentPointer() {
+  if (window.parent === window) return;
+  const now = Date.now();
+  if (now - lastParentNotice < 150) return;
+  lastParentNotice = now;
+  window.parent.postMessage({ source: 'vdz-watch', type: 'pointer' }, location.origin);
 }
+
+function showPlayerMenu() {
+  playerMenu.classList.add('shown');
+  if (menuTimer) clearTimeout(menuTimer);
+  menuTimer = null;
+  notifyParentPointer();
+  if (menuPointerDown || playerMenu.matches(':focus-within')) return;
+  menuTimer = setTimeout(() => {
+    menuTimer = null;
+    if (menuPointerDown || playerMenu.matches(':focus-within')) return;
+    playerMenu.classList.remove('shown');
+  }, MENU_HIDE_MS);
+}
+
+document.addEventListener('pointermove', showPlayerMenu);
+document.addEventListener('pointerdown', () => {
+  menuPointerDown = true;
+  showPlayerMenu();
+});
+document.addEventListener('pointerup', () => {
+  menuPointerDown = false;
+  showPlayerMenu();
+});
+document.addEventListener('pointercancel', () => {
+  menuPointerDown = false;
+  showPlayerMenu();
+});
+playerMenu.addEventListener('focusin', showPlayerMenu);
+playerMenu.addEventListener('focusout', () => {
+  setTimeout(showPlayerMenu, 0);
+});
 
 connect();

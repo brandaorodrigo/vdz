@@ -72,12 +72,45 @@
     document.addEventListener('fullscreenchange', renderFullscreen);
 
     const topMenu = document.getElementById('top-menu');
-    if (window.matchMedia('(hover: none)').matches) {
-      topMenu.addEventListener('pointerdown', (event) => {
-        if (event.target.closest('button')) return;
-        topMenu.classList.toggle('open');
-      });
+    const MENU_HIDE_MS = 2000;
+    let menuTimer = null;
+    let menuPointerDown = false;
+
+    function showTopMenu() {
+      topMenu.classList.add('shown');
+      if (menuTimer) clearTimeout(menuTimer);
+      menuTimer = null;
+      if (menuPointerDown || topMenu.matches(':focus-within')) return;
+      menuTimer = setTimeout(() => {
+        menuTimer = null;
+        if (menuPointerDown || topMenu.matches(':focus-within')) return;
+        topMenu.classList.remove('shown');
+      }, MENU_HIDE_MS);
     }
+
+    document.addEventListener('pointermove', showTopMenu);
+    document.addEventListener('pointerdown', () => {
+      menuPointerDown = true;
+      showTopMenu();
+    });
+    document.addEventListener('pointerup', () => {
+      menuPointerDown = false;
+      showTopMenu();
+    });
+    document.addEventListener('pointercancel', () => {
+      menuPointerDown = false;
+      showTopMenu();
+    });
+    topMenu.addEventListener('focusin', showTopMenu);
+    topMenu.addEventListener('focusout', () => {
+      setTimeout(showTopMenu, 0);
+    });
+    window.addEventListener('message', (event) => {
+      if (event.origin !== location.origin) return;
+      const data = event.data;
+      if (!data || data.source !== 'vdz-watch' || data.type !== 'pointer') return;
+      showTopMenu();
+    });
   </script>
 </body>
 </html>

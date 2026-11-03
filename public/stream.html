@@ -67,6 +67,18 @@
 
     loadLives();
     setInterval(loadLives, 5000);
+
+    if (window.parent !== window) {
+      let lastNotice = 0;
+      const notice = () => {
+        const now = Date.now();
+        if (now - lastNotice < 150) return;
+        lastNotice = now;
+        window.parent.postMessage({ source: 'vdz-watch', type: 'pointer' }, location.origin);
+      };
+      document.addEventListener('pointermove', notice);
+      document.addEventListener('pointerdown', notice);
+    }
   </script>
 </body>
 </html>

@@ -731,7 +731,7 @@ function leavePage() {
 
 function roomNameFromField() {
   const name = chosenName();
-  if (name === 'host' || name === 'watch') {
+  if (name === 'host' || name === 'watch' || name === 'webcam') {
     setStatus('esse nome não pode ser usado');
     return '';
   }

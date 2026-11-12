@@ -7,7 +7,7 @@ A interface é em português. O servidor só apresenta as pessoas. O vídeo e o 
 ## O que não fazer
 
 - Não colocar o vídeo no servidor, nem banco, conta, chat, senha ou TURN.
-- Não criar uma rota com o nome `host` nem `watch`. `host` é a página do transmissor. `watch` é a lista de quem está no ar.
+- Não criar uma rota com o nome `host`, `watch` nem `webcam`. `host` é a página do transmissor. `watch` é a lista de quem está no ar. `webcam` é a câmera local, fora das salas.
 - Não tratar `/1`, `/2`, `/3` e `/4` como sala. São páginas de vários quadros.
 - Sala é só letras minúsculas, de 1 a 32. O campo da tela limita a 10.
 - Cada assistindo recebe a própria conexão com o transmissor. Não reenviar de um assistindo para outro.
@@ -35,15 +35,16 @@ Estado só na memória. Reiniciar o processo apaga as salas.
 | `/` | `index.html`, Assistir, Transmitir, e os ícones Windows, Linux e GitHub |
 | `/watch` | `stream.html`, lista ao vivo |
 | `/host` | `live.html`, transmissor, no navegador e no Electron |
+| `/webcam` | `webcam.html`, câmera do navegador preenchendo a janela. O vídeo fica no cliente, para essa janela ser compartilhada pelo transmissor |
 | `/1` `/2` `/3` `/4` | `mosaic.html`, um a quatro iframes de `/watch` |
-| `/nome` | `watch.html`, se o nome for `^[a-z]{1,32}$` e não for `host` nem `watch` |
+| `/nome` | `watch.html`, se o nome for `^[a-z]{1,32}$` e não for `host`, `watch` nem `webcam` |
 | `/api/rooms` | JSON `{ "rooms": ["nome"] }`, salas em uso, sem cache |
 | `/health` | texto `ok` |
 | `/vdz_1.12.exe` | o instalador Windows de `public/`, como anexo |
 | `/vdz_1.12.AppImage` | o instalador Linux de `public/`, como anexo |
 | `/ws` | WebSocket |
 
-Arquivos de `public/` saem de uma lista branca em `server.js`. Página nova ou script novo precisa entrar nessa lista. `/host` e `/watch` têm de ser resolvidos antes do padrão da sala.
+Arquivos de `public/` saem de uma lista branca em `server.js`. Página nova ou script novo precisa entrar nessa lista. `/host`, `/watch` e `/webcam` têm de ser resolvidos antes do padrão da sala.
 
 ## Sinalização
 
@@ -93,7 +94,9 @@ Fonte Google Sans e ícones Material Icons, ambos do Google Fonts. Fundo `#1a191
 
 `/watch` lista os nomes em uso, atualiza a cada 5 segundos, e cada nome aponta para `/nome`.
 
-`/host` começa só com o nome e o botão de criar. Enter cria a sala. Depois aparecem resolução, quadros, escolher janela e encerrar. O Voltar fica na parte de baixo e abre `/`. O nome `watch` também não pode ser usado.
+`/host` começa só com o nome e o botão de criar. Enter cria a sala. Depois aparecem resolução, quadros, escolher janela e encerrar. O Voltar fica na parte de baixo e abre `/`. Os nomes `watch` e `webcam` também não podem ser usados.
+
+`/webcam` abre a câmera do navegador preenchendo a janela. Nada disso vai ao servidor. A página existe para essa janela ser escolhida na transmissão.
 
 `/nome` é o vídeo em tela cheia da página. Sem transmissão, o centro mostra o ícone de espera. Com a transmissão no ar e a imagem ainda carregando, mostra a ampulheta. Volume, som e o X ficam num menu no centro da borda de baixo. O menu desliza para dentro quando o ponteiro se move na página e some com fade depois de 2 segundos parado. O número de quem está assistindo fica numa bolinha antes do volume, nesse menu, e some enquanto a sala não existe. No toque, o toque mostra o menu e ele some do mesmo jeito. Volume começa em 50%, desmutado. O X volta para `/watch`.
 

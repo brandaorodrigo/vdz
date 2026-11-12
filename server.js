@@ -12,12 +12,16 @@ const PORT = Number(process.env.PORT) || 3000;
 const MAX_MESSAGE = 64 * 1024;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
+const RESERVED = new Set(['host', 'watch', 'webcam']);
+
 const FILES = new Map([
   ['/', 'index.html'],
   ['/watch', 'stream.html'],
   ['/host', 'host.html'],
+  ['/webcam', 'webcam.html'],
   ['/host.js', 'host.js'],
   ['/watch.js', 'watch.js'],
+  ['/webcam.js', 'webcam.js'],
   ['/loopback-worklet.js', 'loopback-worklet.js'],
   ['/style.css', 'style.css'],
   ['/1', 'mosaic.html'],
@@ -69,7 +73,7 @@ function newId() {
 function roomName(value) {
   if (typeof value !== 'string') return null;
   const name = value.trim().toLowerCase();
-  if (!/^[a-z]{1,32}$/.test(name) || name === 'host' || name === 'watch') return null;
+  if (!/^[a-z]{1,32}$/.test(name) || RESERVED.has(name)) return null;
   return name;
 }
 
@@ -142,7 +146,7 @@ function handleCreate(ws, meta, msg) {
   const id = roomName(msg.roomId);
   if (!id) {
     const raw = typeof msg.roomId === 'string' ? msg.roomId.trim().toLowerCase() : '';
-    const message = raw === 'host' || raw === 'watch'
+    const message = RESERVED.has(raw)
       ? 'Esse nome não pode ser usado'
       : 'Use só letras, sem números, sem espaços e nem símbolos';
     send(ws, { type: 'error', message });
@@ -332,7 +336,9 @@ function serve(req, res) {
   }
 
   let fileName = FILES.get(url.pathname);
-  if (!fileName && /^\/[a-z]{1,32}$/.test(url.pathname)) fileName = 'watch.html';
+  if (!fileName && /^\/[a-z]{1,32}$/.test(url.pathname) && !RESERVED.has(url.pathname.slice(1))) {
+    fileName = 'watch.html';
+  }
   if (!fileName) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end(req.method === 'HEAD' ? undefined : 'not found');

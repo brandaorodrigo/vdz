@@ -24,7 +24,9 @@ O padrão é 1080p a 60 fps. Dá para mudar resolução e quadros com a transmis
 
 No navegador, a captura usa o seletor do Chrome, com o áudio que ele oferecer. No aplicativo, a lista é de janelas e o som é o do processo da janela escolhida.
 
-O nome da sala usa só letras, até 10 caracteres. Os nomes `host` e `watch` não podem ser usados.
+O nome da sala usa só letras, até 10 caracteres. Os nomes `host`, `watch` e `webcam` não podem ser usados.
+
+`/webcam` abre a câmera do navegador preenchendo a janela. A imagem fica no cliente. Dá para escolher essa janela na transmissão.
 
 ## Local
 

@@ -1,38 +1,58 @@
+const { spawn } = require('node:child_process');
 const http = require('node:http');
 const path = require('node:path');
 const { app, BrowserWindow, desktopCapturer, ipcMain, Menu, session } = require('electron');
 const { close, listen } = require('../server');
 
-let audio = null;
-try {
-    audio = require('electron-native-screenshare');
-} catch (err) {
-    console.error(err);
-}
+app.commandLine.appendSwitch('lang', 'pt-BR');
 
 let win = null;
 let ownsServer = false;
 let pendingVideo = null;
 let activeSource = null;
+let capture = null;
 let generation = 0;
+
+function audioExe() {
+    if (app.isPackaged) {
+        return path.join(process.resourcesPath, 'win-audio.exe');
+    }
+    return path.join(__dirname, '..', 'native', 'win-audio.exe');
+}
 
 function hwndOf(id) {
     return Number(String(id).split(':')[1]);
 }
 
-function pidOf(id) {
-    if (!audio?.getPidFromWindowHandle) {
-        return 0;
-    }
-    const hwnd = hwndOf(id);
-    if (!hwnd) {
-        return 0;
-    }
-    try {
-        return audio.getPidFromWindowHandle(hwnd) || 0;
-    } catch {
-        return 0;
-    }
+function pidsFor(hwnds) {
+    return new Promise((resolve) => {
+        if (!hwnds.length) {
+            resolve(new Map());
+            return;
+        }
+        const child = spawn(audioExe(), ['--pid', ...hwnds.map(String)], { windowsHide: true });
+        let out = '';
+        let finished = false;
+        const done = () => {
+            if (finished) {
+                return;
+            }
+            finished = true;
+            const map = new Map();
+            for (const line of out.split(/\r?\n/)) {
+                const [hwnd, pid] = line.trim().split(' ');
+                if (hwnd && pid) {
+                    map.set(Number(hwnd), Number(pid));
+                }
+            }
+            resolve(map);
+        };
+        child.stdout.on('data', (chunk) => {
+            out += chunk.toString();
+        });
+        child.on('error', done);
+        child.on('close', done);
+    });
 }
 
 function samplesFrom(data, meta) {
@@ -55,11 +75,12 @@ function samplesFrom(data, meta) {
 
 function stopAudio() {
     generation += 1;
-    try {
-        audio?.stopCapture();
-    } catch (err) {
-        console.error(err);
+    if (!capture) {
+        return;
     }
+    const child = capture;
+    capture = null;
+    child.kill();
 }
 
 function serverUp(port) {
@@ -97,9 +118,11 @@ function sendChunk(gen, data, meta) {
 
 ipcMain.handle('windows', async () => {
     const sources = await desktopCapturer.getSources({ thumbnailSize: { height: 0, width: 0 }, types: ['window'] });
+    const pids = await pidsFor(sources.map((source) => hwndOf(source.id)).filter(Boolean));
     const list = [];
     for (const source of sources) {
-        if (!source.name || pidOf(source.id) === process.pid) {
+        const pid = pids.get(hwndOf(source.id));
+        if (!source.name || pid === process.pid) {
             continue;
         }
         list.push({ id: source.id, name: source.name });
@@ -120,41 +143,53 @@ ipcMain.handle('choose', async (_event, id) => {
 });
 
 ipcMain.handle('start-audio', () => {
-    if (!audio?.startCapture || !activeSource) {
-        return null;
-    }
-    const pid = pidOf(activeSource.id);
-    if (!pid) {
+    const hwnd = activeSource ? hwndOf(activeSource.id) : 0;
+    if (!hwnd) {
         return null;
     }
     stopAudio();
     const gen = generation;
+    const child = spawn(audioExe(), [String(hwnd)], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    capture = child;
     return new Promise((resolve) => {
         let settled = false;
-        const finish = (meta) => {
+        let meta = null;
+        let buf = Buffer.alloc(0);
+        const finish = (value) => {
             if (settled) {
                 return;
             }
             settled = true;
-            resolve({ channels: meta?.channels || 2, sampleRate: meta?.sampleRate || 48000 });
+            resolve(value);
         };
-        try {
-            const ok = audio.startCapture(pid, true, (data, meta) => {
-                finish(meta);
-                sendChunk(gen, data, meta);
-            });
-            if (!ok) {
-                settled = true;
-                resolve(null);
+        child.stdout.on('data', (chunk) => {
+            if (gen !== generation) {
                 return;
             }
-        } catch (err) {
+            buf = Buffer.concat([buf, chunk]);
+            if (!meta) {
+                if (buf.length < 8) {
+                    return;
+                }
+                meta = { bitsPerSample: buf.readUInt16LE(6), channels: buf.readUInt16LE(4), isFloat: false, sampleRate: buf.readUInt32LE(0) };
+                buf = buf.subarray(8);
+                finish({ channels: meta.channels || 2, sampleRate: meta.sampleRate || 48000 });
+            }
+            const frame = Math.max(1, (meta.bitsPerSample / 8) * meta.channels);
+            const usable = buf.length - (buf.length % frame);
+            if (!usable) {
+                return;
+            }
+            sendChunk(gen, buf.subarray(0, usable), meta);
+            buf = buf.subarray(usable);
+        });
+        child.stderr.on('data', (chunk) => console.error(chunk.toString()));
+        child.on('error', (err) => {
             console.error(err);
-            settled = true;
-            resolve(null);
-            return;
-        }
-        setTimeout(() => finish(null), 800);
+            finish(null);
+        });
+        child.on('close', () => finish(null));
+        setTimeout(() => finish(null), 2500);
     });
 });
 
@@ -165,8 +200,8 @@ ipcMain.handle('stop-audio', () => {
 function open() {
     win = new BrowserWindow({
         autoHideMenuBar: true,
-        backgroundColor: '#ffffff',
-        height: 180,
+        backgroundColor: '#000000',
+        height: 480,
         show: false,
         title: 'stream',
         webPreferences: {
@@ -176,7 +211,7 @@ function open() {
             preload: path.join(__dirname, 'preload.js'),
             sandbox: true,
         },
-        width: 520,
+        width: 720,
     });
     win.once('ready-to-show', () => win.show());
     return port().then((number) => win.loadURL(`http://127.0.0.1:${number}/stream`));

@@ -114,6 +114,27 @@ wss.on('connection', (ws) => {
     });
 });
 
-server.listen(3000, () => {
-    console.log('http://localhost:3000');
-});
+function listen(port = 3000) {
+    if (server.listening) {
+        return Promise.resolve(server.address().port);
+    }
+    return new Promise((resolve, reject) => {
+        const onError = (err) => {
+            server.off('error', onError);
+            reject(err);
+        };
+        server.once('error', onError);
+        server.listen(port, () => {
+            server.off('error', onError);
+            resolve(server.address().port);
+        });
+    });
+}
+
+if (require.main === module) {
+    listen(3000).then((port) => {
+        console.log(`http://localhost:${port}`);
+    });
+}
+
+module.exports = { close: () => server.close(), listen };

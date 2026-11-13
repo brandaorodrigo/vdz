@@ -1,13 +1,51 @@
 {
+    "build": {
+        "appId": "vdz",
+        "asar": true,
+        "compression": "maximum",
+        "electronLanguages": [
+            "pt-BR"
+        ],
+        "extraResources": [
+            {
+                "from": "native/win-audio.exe",
+                "to": "win-audio.exe"
+            }
+        ],
+        "nsis": {
+            "allowToChangeInstallationDirectory": false,
+            "createDesktopShortcut": true,
+            "displayLanguageSelector": false,
+            "installerLanguages": [
+                "pt_BR"
+            ],
+            "oneClick": true,
+            "perMachine": false,
+            "shortcutName": "vdz"
+        },
+        "productName": "vdz",
+        "win": {
+            "target": [
+                "nsis"
+            ]
+        }
+    },
     "dependencies": {
-        "@biomejs/biome": "^2.6.7",
         "express": "^4.21.2",
         "ws": "^8.18.3"
     },
+    "devDependencies": {
+        "@biomejs/biome": "^2.6.7",
+        "electron": "^39.2.0",
+        "electron-builder": "^26.0.12"
+    },
+    "main": "electron/main.js",
     "name": "vdz",
     "private": true,
     "scripts": {
+        "app": "node scripts/build-audio.js && electron .",
+        "dist": "node scripts/build-audio.js && electron-builder --win nsis",
         "start": "node server.js"
     },
-    "type": "module"
+    "version": "2.0.0"
 }

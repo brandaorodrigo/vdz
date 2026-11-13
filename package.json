@@ -8,11 +8,12 @@
         ],
         "extraResources": [
             {
-                "from": "native/win-audio.exe",
+                "from": "electron/win-audio.exe",
                 "to": "win-audio.exe"
             }
         ],
         "nsis": {
+            "artifactName": "vdz_${version}.${ext}",
             "allowToChangeInstallationDirectory": false,
             "createDesktopShortcut": true,
             "displayLanguageSelector": false,
@@ -43,8 +44,8 @@
     "name": "vdz",
     "private": true,
     "scripts": {
-        "app": "node scripts/build-audio.js && electron .",
-        "dist": "node scripts/build-audio.js && electron-builder --win nsis",
+        "app": "node electron/build-audio.js && electron .",
+        "dist": "node electron/build-audio.js && electron-builder --win nsis",
         "start": "node server.js"
     },
     "version": "2.0.0"

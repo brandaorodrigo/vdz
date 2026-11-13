@@ -2,9 +2,8 @@ const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const root = path.join(__dirname, '..');
-const source = path.join(root, 'native', 'win-audio.cs');
-const exe = path.join(root, 'native', 'win-audio.exe');
+const source = path.join(__dirname, 'win-audio.cs');
+const exe = path.join(__dirname, 'win-audio.exe');
 if (fs.existsSync(exe) && fs.statSync(exe).mtimeMs >= fs.statSync(source).mtimeMs) {
     process.exit(0);
 }

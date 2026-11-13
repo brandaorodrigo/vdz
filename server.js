@@ -19,6 +19,10 @@ app.get('/play', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'play.html'));
 });
 
+app.get('/vdz_2.0.0.exe', (_req, res) => {
+    res.download(path.join(__dirname, 'vdz_2.0.0.exe'));
+});
+
 const MAX_BROADCASTERS = 4;
 const broadcasters = new Map();
 const watchers = new Map();

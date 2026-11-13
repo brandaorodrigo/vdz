@@ -17,7 +17,7 @@ function audioExe() {
     if (app.isPackaged) {
         return path.join(process.resourcesPath, 'win-audio.exe');
     }
-    return path.join(__dirname, '..', 'native', 'win-audio.exe');
+    return path.join(__dirname, 'win-audio.exe');
 }
 
 function hwndOf(id) {

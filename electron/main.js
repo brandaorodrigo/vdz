@@ -1,5 +1,5 @@
 const { spawn } = require('node:child_process');
-const http = require('node:http');
+const https = require('node:https');
 const path = require('node:path');
 const { app, BrowserWindow, desktopCapturer, ipcMain, Menu, session } = require('electron');
 const { close, listen } = require('../server');
@@ -83,9 +83,11 @@ function stopAudio() {
     child.kill();
 }
 
-function serverUp(port) {
+const streamUrl = 'https://vdz.onrender.com/stream';
+
+function serverUp() {
     return new Promise((resolve) => {
-        const req = http.get(`http://127.0.0.1:${port}/stream`, (res) => {
+        const req = https.get(streamUrl, (res) => {
             res.resume();
             resolve(res.statusCode === 200);
         });
@@ -97,12 +99,13 @@ function serverUp(port) {
     });
 }
 
-async function port() {
-    if (await serverUp(3000)) {
-        return 3000;
+async function streamAddress() {
+    if (await serverUp()) {
+        return streamUrl;
     }
     ownsServer = true;
-    return listen(3000);
+    const number = await listen(80);
+    return `http://127.0.0.1:${number}/stream`;
 }
 
 function sendChunk(gen, data, meta) {
@@ -215,7 +218,7 @@ function open() {
         width: 720,
     });
     win.once('ready-to-show', () => win.show());
-    return port().then((number) => win.loadURL(`http://127.0.0.1:${number}/stream`));
+    return streamAddress().then((url) => win.loadURL(url));
 }
 
 app.whenReady().then(() => {

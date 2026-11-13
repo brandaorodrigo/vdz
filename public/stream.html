@@ -26,8 +26,8 @@
     <button id="go" type="button">stream</button>
     <span id="note"></span>
     <script>
-        const MIN_BITRATE = 4_000_000;
-        const MAX_BITRATE = 40_000_000;
+        const MIN_BITRATE = 2_000_000;
+        const MAX_BITRATE = 6_000_000;
         const pcs = new Map();
         const ice = new Map();
         let stream = null;
@@ -52,14 +52,56 @@
                 params.encodings = [{}];
             }
             const settings = sender.track.getSettings();
-            const scale = Math.max(settings.width ? settings.width / width : 1, settings.height ? settings.height / height : 1);
+            const scale = Math.max(settings.width ? settings.width / width : 1, settings.height ? settings.height / height : 1, 1);
             params.encodings[0].minBitrate = MIN_BITRATE;
             params.encodings[0].maxBitrate = MAX_BITRATE;
             params.encodings[0].maxFramerate = fps;
-            if (scale > 1) {
-                params.encodings[0].scaleResolutionDownBy = scale;
-            }
+            params.encodings[0].scaleResolutionDownBy = scale;
             await sender.setParameters(params);
+        }
+
+        function readQuality() {
+            const size = document.getElementById('res').value.split('x');
+            width = Number(size[0]);
+            height = Number(size[1]);
+            fps = Number(document.getElementById('fps').value);
+        }
+
+        async function pushQuality() {
+            if (!stream) {
+                return;
+            }
+            const track = stream.getVideoTracks()[0];
+            if (track) {
+                try {
+                    await track.applyConstraints({
+                        frameRate: { ideal: fps, max: fps },
+                        height: { ideal: height, max: height },
+                        width: { ideal: width, max: width },
+                    });
+                } catch {}
+            }
+            if (!stream) {
+                return;
+            }
+            for (const pc of pcs.values()) {
+                for (const sender of pc.getSenders()) {
+                    if (sender.track?.kind !== 'video') {
+                        continue;
+                    }
+                    try {
+                        await setSender(sender);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+            }
+        }
+
+        let qualityChain = Promise.resolve();
+        function onQualityChange() {
+            readQuality();
+            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => console.error(err));
         }
 
         async function connectViewer(id) {
@@ -290,10 +332,7 @@
             }
             starting = true;
             document.getElementById('note').textContent = '';
-            const size = document.getElementById('res').value.split('x');
-            width = Number(size[0]);
-            height = Number(size[1]);
-            fps = Number(document.getElementById('fps').value);
+            readQuality();
             try {
                 stream = await capture();
             } catch (err) {
@@ -307,9 +346,8 @@
                 starting = false;
             }
             const track = stream.getVideoTracks()[0];
-            try {
-                await track.applyConstraints({ frameRate: { ideal: fps, max: fps } });
-            } catch { }
+            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => console.error(err));
+            await qualityChain;
             if (!stream) {
                 return;
             }
@@ -317,6 +355,9 @@
             go.textContent = 'stop';
             send({ type: 'broadcaster' });
         };
+
+        document.getElementById('res').addEventListener('change', onQualityChange);
+        document.getElementById('fps').addEventListener('change', onQualityChange);
 
         const winSelect = document.getElementById('win');
         if (window.vdz) {

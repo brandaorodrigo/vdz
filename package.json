@@ -12,9 +12,12 @@
                 "to": "win-audio.exe"
             }
         ],
+        "files": [
+            "!**/vdz_*.exe"
+        ],
         "nsis": {
-            "artifactName": "vdz_${version}.${ext}",
             "allowToChangeInstallationDirectory": false,
+            "artifactName": "vdz_${version}.${ext}",
             "createDesktopShortcut": true,
             "displayLanguageSelector": false,
             "installerLanguages": [
@@ -26,6 +29,7 @@
         },
         "productName": "vdz",
         "win": {
+            "icon": "public/android-chrome-512x512.png",
             "target": [
                 "nsis"
             ]

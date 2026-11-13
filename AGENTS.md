@@ -66,7 +66,7 @@ O transmissor manda `leave` ao encerrar e ao sair da página. O nome fica livre 
 
 ## WebRTC
 
-STUN `stun:stun.l.google.com:19302`. Sem TURN.
+STUN `stun:stun.l.google.com:19302` e, em reserva, `stun:stun.cloudflare.com:3478`. Sem TURN.
 
 O transmissor cria um `RTCPeerConnection` por assistindo. Se a captura ainda não começou, a oferta sai quando a janela for escolhida. Trocar de janela substitui os trilhos sem derrubar a sala.
 
@@ -98,7 +98,7 @@ Fonte Google Sans e ícones Material Icons, ambos do Google Fonts. Fundo `#1a191
 
 `/webcam` abre a câmera do navegador preenchendo a janela. Nada disso vai ao servidor. A página existe para essa janela ser escolhida na transmissão.
 
-`/nome` é o vídeo em tela cheia da página. Sem transmissão, o centro mostra o ícone de espera. Com a transmissão no ar e a imagem ainda carregando, mostra a ampulheta. Volume, som e o X ficam num menu no centro da borda de baixo. O menu desliza para dentro quando o ponteiro se move na página e some com fade depois de 2 segundos parado. O número de quem está assistindo fica numa bolinha antes do volume, nesse menu, e some enquanto a sala não existe. No toque, o toque mostra o menu e ele some do mesmo jeito. Volume começa em 50%, desmutado. O X volta para `/watch`.
+`/nome` é o vídeo em tela cheia da página. Sem transmissão, o centro mostra o ícone de espera. Com a transmissão no ar e a imagem ainda carregando, mostra a ampulheta. Volume, som e o X ficam num menu no centro da borda de baixo. O menu desliza para dentro quando o ponteiro se move na página e some com fade depois de 2 segundos parado. O número de quem está assistindo fica numa bolinha antes do volume, nesse menu, e some enquanto a sala não existe. No toque, o toque mostra o menu e ele some do mesmo jeito. Volume começa em 100%, desmutado, no meio do controle, e o máximo é 200%. O X volta para `/watch`.
 
 `/1` é um iframe em tela toda. `/2` são dois iframes lado a lado. `/3` são três lado a lado. `/4` são dois em cima e dois embaixo. Cada iframe abre `/watch`. O menu com menos quadros, mais quadros e a tela inteira fica no centro do topo. Ele desliza para dentro quando o ponteiro se move na página, inclusive sobre um quadro, e some com fade depois de 2 segundos parado. No toque, o toque mostra o menu e ele some do mesmo jeito. Mais quadros abre o mosaico seguinte, do zero, com `/watch` de novo em cada quadro. Menos quadros volta um. No `/1` o menos fica desligado. No `/4` o mais fica desligado.
 

@@ -1,6 +1,11 @@
 'use strict';
 
-const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+const ICE_SERVERS = [{
+  urls: [
+    'stun:stun.l.google.com:19302',
+    'stun:stun.cloudflare.com:3478'
+  ]
+}];
 const PING_MS = 4 * 60 * 1000;
 
 const statusEl = document.getElementById('status');
@@ -20,7 +25,8 @@ video.addEventListener('waiting', () => {
   setStatus('Recebendo');
 });
 const viewerCountEl = document.getElementById('viewer-count');
-const VOLUME_START = 50;
+const VOLUME_MAX = 200;
+const VOLUME_START = 100;
 
 let ws = null;
 let pc = null;
@@ -34,6 +40,13 @@ let reconnectAttempt = 0;
 let pingTimer = null;
 let volumeLevel = VOLUME_START;
 let soundMuted = false;
+let audioCtx = null;
+let gainNode = null;
+
+volumeInput.min = '0';
+volumeInput.max = String(VOLUME_MAX);
+volumeInput.value = String(VOLUME_START);
+volumeInput.style.setProperty('--volume', (VOLUME_START / VOLUME_MAX) * 100 + '%');
 
 function setStatus(text) {
   const live = text === 'No ar';
@@ -62,12 +75,43 @@ function soundGlyph(muted) {
   return muted ? 'volume_off' : 'volume_up';
 }
 
+function attachGain() {
+  if (gainNode) return;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  try {
+    const ctx = new Ctx();
+    const source = ctx.createMediaElementSource(video);
+    const gain = ctx.createGain();
+    gain.gain.value = volumeLevel / 100;
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    audioCtx = ctx;
+    gainNode = gain;
+  } catch {
+    audioCtx = null;
+    gainNode = null;
+  }
+}
+
+function applyLoudness() {
+  if (volumeLevel > 100) attachGain();
+  if (gainNode) {
+    gainNode.gain.value = volumeLevel / 100;
+    video.volume = 1;
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    return;
+  }
+  video.volume = Math.min(1, volumeLevel / 100);
+}
+
 function renderSound() {
   const silent = soundMuted || volumeLevel === 0;
-  video.volume = volumeLevel / 100;
+  applyLoudness();
   video.muted = silent;
   volumeInput.value = String(volumeLevel);
-  volumeInput.style.setProperty('--volume', volumeLevel + '%');
+  volumeInput.style.setProperty('--volume', (volumeLevel / VOLUME_MAX) * 100 + '%');
+  volumeInput.setAttribute('aria-valuetext', volumeLevel + '%');
   soundIcon.textContent = soundGlyph(silent);
   const soundLabel = silent ? 'Desmutar' : 'Mutar';
   unmuteBtn.setAttribute('aria-label', soundLabel);
@@ -75,7 +119,7 @@ function renderSound() {
 }
 
 function setVolume(level) {
-  volumeLevel = Math.min(100, Math.max(0, Math.round(level)));
+  volumeLevel = Math.min(VOLUME_MAX, Math.max(0, Math.round(level)));
   soundMuted = volumeLevel === 0;
   renderSound();
   if (!video.muted) video.play().catch(() => {});
@@ -96,10 +140,10 @@ function playMuted(gen) {
   return started || Promise.resolve();
 }
 
-function beginHalfVolume() {
+function beginPlayback() {
   const gen = generation;
   volumeLevel = VOLUME_START;
-  video.volume = volumeLevel / 100;
+  applyLoudness();
   video.muted = true;
   const started = video.play();
   if (!started) return;
@@ -247,12 +291,12 @@ function createPc() {
       if (video.srcObject !== remote) {
         video.muted = true;
         video.srcObject = remote;
-        beginHalfVolume();
+        beginPlayback();
       }
     } else if (!video.srcObject) {
       video.muted = true;
       video.srcObject = new MediaStream([event.track]);
-      beginHalfVolume();
+      beginPlayback();
     } else if (!video.srcObject.getTracks().includes(event.track)) {
       video.srcObject.addTrack(event.track);
     }

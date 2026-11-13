@@ -1,14 +1,19 @@
 'use strict';
 
-const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+const ICE_SERVERS = [{
+  urls: [
+    'stun:stun.l.google.com:19302',
+    'stun:stun.cloudflare.com:3478'
+  ]
+}];
 const PING_MS = 4 * 60 * 1000;
 const BITRATES = new Map([
-  ['480:30', 3_000_000],
-  ['480:60', 3_000_000],
-  ['720:30', 6_000_000],
-  ['720:60', 6_000_000],
-  ['1080:30', 9_000_000],
-  ['1080:60', 9_000_000]
+  ['480:30', 250_000],
+  ['480:60', 500_000],
+  ['720:30', 1_000_000],
+  ['720:60', 2_000_000],
+  ['1080:30', 3_000_000],
+  ['1080:60', 4_000_000]
 ]);
 const FRAME_RATES = new Set([30, 60]);
 const RESOLUTIONS = new Map([

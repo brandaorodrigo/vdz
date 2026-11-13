@@ -1,13 +1,14 @@
 {
-  "name": "vdz",
-  "version": "1.12",
-  "private": true,
-  "description": "compartilhamento de tela",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "ws": "^8.18.3"
-  }
+    "dependencies": {
+        "@biomejs/biome": "^2.6.7",
+        "ws": "^8.18.3"
+    },
+    "description": "compartilhamento de tela",
+    "main": "server.js",
+    "name": "vdz",
+    "private": true,
+    "scripts": {
+        "start": "node server.js"
+    },
+    "version": "1.14"
 }

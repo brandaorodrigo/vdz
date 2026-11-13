@@ -1,0 +1,87 @@
+{
+    "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+    "assist": {
+        "actions": {
+            "source": {
+                "organizeImports": "on",
+                "useSortedAttributes": "on",
+                "useSortedKeys": "on"
+            }
+        }
+    },
+    "css": {
+        "parser": {
+            "tailwindDirectives": true
+        }
+    },
+    "files": {
+        "ignoreUnknown": true
+    },
+    "formatter": {
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineEnding": "auto",
+        "lineWidth": 160
+    },
+    "html": {
+        "experimentalFullSupportEnabled": true,
+        "formatter": {
+            "enabled": true
+        }
+    },
+    "javascript": {
+        "formatter": {
+            "expand": "never",
+            "jsxQuoteStyle": "single",
+            "quoteStyle": "single"
+        }
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "correctness": {
+                "noEmptyPattern": "off"
+            },
+            "preset": "recommended",
+            "style": {
+                "noDescendingSpecificity": "off",
+                "noUnusedTemplateLiteral": {
+                    "fix": "safe",
+                    "level": "error",
+                    "options": {}
+                },
+                "noUselessElse": {
+                    "fix": "safe",
+                    "level": "error",
+                    "options": {}
+                },
+                "useBlockStatements": {
+                    "fix": "safe",
+                    "level": "error",
+                    "options": {}
+                },
+                "useSelfClosingElements": {
+                    "fix": "safe",
+                    "level": "error",
+                    "options": {}
+                },
+                "useTemplate": {
+                    "fix": "safe",
+                    "level": "error",
+                    "options": {}
+                }
+            },
+            "suspicious": {
+                "noConsole": {
+                    "level": "warn",
+                    "options": {}
+                },
+                "noDoubleEquals": {
+                    "fix": "safe",
+                    "level": "error",
+                    "options": {}
+                }
+            }
+        }
+    }
+}

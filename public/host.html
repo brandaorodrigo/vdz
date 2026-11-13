@@ -1,46 +1,60 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
+
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>vdz</title>
-  <link rel="icon" href="/favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/site.webmanifest">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;600&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css">
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>vdz</title>
+    <link href="/favicon.ico" rel="icon" sizes="48x48">
+    <link href="/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png">
+    <link href="/favicon-16x16.png" rel="icon" sizes="16x16" type="image/png">
+    <link href="/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
+    <link href="/site.webmanifest" rel="manifest">
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="/style.css" rel="stylesheet">
 </head>
+
 <body class="host">
-  <main>
-    <video id="preview" autoplay muted playsinline hidden></video>
-    <div id="picker" class="picker" hidden>
-      <div id="picker-list"></div>
-    </div>
-    <div id="capture-settings" class="row settings">
-      <input id="room-name" type="text" maxlength="10" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="Nome da transmissão" aria-label="Nome da transmissão">
-      <button id="create" class="icon-btn" type="button" data-tooltip="Criar transmissão" aria-label="Criar transmissão"><span class="icon" aria-hidden="true">cast</span></button>
-    </div>
-    <div class="row">
-      <select id="resolution" aria-label="Resolução" hidden>
-        <option value="480">480p</option>
-        <option value="720">720p</option>
-        <option value="1080" selected>1080p</option>
-      </select>
-      <select id="fps" aria-label="Quadros por segundo" hidden>
-        <option value="30">30 fps</option>
-        <option value="60" selected>60 fps</option>
-      </select>
-      <button id="share" class="icon-btn" type="button" hidden data-tooltip="Selecionar janela para transmitir" aria-label="Selecionar janela para transmitir"><span class="icon" aria-hidden="true">cast</span></button>
-      <button id="stop" class="icon-btn end" type="button" hidden data-tooltip="Encerrar transmissão" aria-label="Encerrar transmissão"><span class="icon" aria-hidden="true">close</span></button>
-    </div>
-  </main>
-  <a class="icon-btn stream-back" href="/" target="_top" data-tooltip="Voltar" aria-label="Voltar"><span class="icon" aria-hidden="true">arrow_back</span></a>
-  <div id="status" class="status-message" role="status" hidden></div>
-  <script src="/host.js"></script>
+    <main>
+        <video autoplay hidden id="preview" muted playsinline></video>
+        <div class="picker" hidden id="picker">
+            <div id="picker-list"></div>
+        </div>
+        <div class="row settings" id="capture-settings">
+            <input aria-label="Nome da transmissão" autocapitalize="off" autocomplete="off" id="room-name"
+                maxlength="10" placeholder="Nome da transmissão" spellcheck="false" type="text">
+            <button aria-label="Criar transmissão" class="icon-btn" data-tooltip="Criar transmissão" id="create"
+                type="button">
+                <span aria-hidden="true" class="icon">cast</span>
+            </button>
+        </div>
+        <div class="row">
+            <select aria-label="Resolução" hidden id="resolution">
+                <option value="480">480p</option>
+                <option value="720">720p</option>
+                <option selected value="1080">1080p</option>
+            </select>
+            <select aria-label="Quadros por segundo" hidden id="fps">
+                <option value="30">30 fps</option>
+                <option selected value="60">60 fps</option>
+            </select>
+            <button aria-label="Selecionar janela para transmitir" class="icon-btn"
+                data-tooltip="Selecionar janela para transmitir" hidden id="share" type="button">
+                <span aria-hidden="true" class="icon">cast</span>
+            </button>
+            <button aria-label="Encerrar transmissão" class="icon-btn end" data-tooltip="Encerrar transmissão" hidden
+                id="stop" type="button">
+                <span aria-hidden="true" class="icon">close</span>
+            </button>
+        </div>
+    </main>
+    <a aria-label="Voltar" class="icon-btn stream-back" data-tooltip="Voltar" href="/" target="_top"><span
+            aria-hidden="true" class="icon">arrow_back</span></a>
+    <div class="status-message" hidden id="status" role="status"></div>
+    <script src="/host.js"></script>
 </body>
+
 </html>

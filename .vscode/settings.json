@@ -1,0 +1,29 @@
+{
+    "editor.bracketPairColorization.enabled": true,
+    "editor.codeActionsOnSave": {
+        "source.action.useSortedAttributes.biome": "explicit",
+        "source.action.useSortedKeys.biome": "explicit",
+        "source.fixAll.biome": "explicit",
+        "source.organizeImports.biome": "explicit"
+    },
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.detectIndentation": false,
+    "editor.fontSize": 12.5,
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "file",
+    "editor.guides.bracketPairs": true,
+    "editor.guides.highlightActiveIndentation": true,
+    "editor.guides.indentation": true,
+    "editor.insertSpaces": true,
+    "editor.lineHeight": 1.5,
+    "editor.renderControlCharacters": true,
+    "editor.renderWhitespace": "all",
+    "editor.rulers": [160],
+    "editor.tabSize": 4,
+    "editor.unicodeHighlight.invisibleCharacters": true,
+    "editor.wordWrap": "wordWrapColumn",
+    "editor.wordWrapColumn": 160,
+    "files.associations": { "*.css": "tailwindcss" },
+    "json.schemaDownload.enable": true,
+    "workbench.tree.indent": 20
+}

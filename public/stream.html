@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>stream</title>
+    <title>vdz</title>
 </head>
 
 <body>
@@ -17,6 +17,7 @@
         <option value="30">30 fps</option>
         <option value="24">24 fps</option>
     </select>
+    <select hidden id="win"></select>
     <button id="go" type="button">stream</button>
     <span id="note"></span>
     <script>
@@ -132,8 +133,130 @@
 
         const go = document.getElementById('go');
         let starting = false;
+        let audioPump = null;
+
+        function releaseAudio() {
+            if (!audioPump) {
+                return;
+            }
+            const release = audioPump;
+            audioPump = null;
+            release();
+        }
+
+        function asFloat(samples) {
+            if (samples instanceof Float32Array) {
+                return samples;
+            }
+            return Float32Array.from(samples);
+        }
+
+        async function startWindowAudio() {
+            const chunks = [];
+            let offset = 0;
+            let channels = 2;
+            window.vdz.onAudio((payload) => {
+                channels = payload.channels || channels;
+                chunks.push(asFloat(payload.samples));
+                let total = 0;
+                for (const item of chunks) {
+                    total += item.length;
+                }
+                while (chunks.length > 1 && total > 48000 * channels) {
+                    total -= chunks[0].length;
+                    chunks.shift();
+                    offset = 0;
+                }
+            });
+            const meta = await window.vdz.startAudio();
+            if (!meta) {
+                window.vdz.offAudio();
+                throw new Error('audio');
+            }
+            const ctx = new AudioContext({ sampleRate: meta.sampleRate || 48000 });
+            await ctx.resume();
+            const dest = ctx.createMediaStreamDestination();
+            const node = ctx.createScriptProcessor(4096, 0, 2);
+            const mute = ctx.createGain();
+            mute.gain.value = 0;
+            node.onaudioprocess = (ev) => {
+                const left = ev.outputBuffer.getChannelData(0);
+                const right = ev.outputBuffer.getChannelData(1);
+                for (let i = 0; i < left.length; i++) {
+                    if (!chunks.length || offset >= chunks[0].length) {
+                        if (chunks.length) {
+                            chunks.shift();
+                            offset = 0;
+                        }
+                        if (!chunks.length) {
+                            left[i] = 0;
+                            right[i] = 0;
+                            continue;
+                        }
+                    }
+                    const data = chunks[0];
+                    if (channels < 2) {
+                        const sample = data[offset++];
+                        left[i] = sample;
+                        right[i] = sample;
+                        continue;
+                    }
+                    if (offset + 1 >= data.length) {
+                        chunks.shift();
+                        offset = 0;
+                        i -= 1;
+                        continue;
+                    }
+                    left[i] = data[offset++];
+                    right[i] = data[offset++];
+                }
+            };
+            node.connect(dest);
+            node.connect(mute);
+            mute.connect(ctx.destination);
+            return {
+                stop() {
+                    window.vdz.offAudio();
+                    window.vdz.stopAudio();
+                    node.disconnect();
+                    mute.disconnect();
+                    ctx.close();
+                },
+                stream: dest.stream,
+            };
+        }
+
+        async function capture() {
+            if (!window.vdz) {
+                return navigator.mediaDevices.getDisplayMedia({
+                    audio: true,
+                    video: { frameRate: { ideal: fps, max: fps }, height: { ideal: height }, width: { ideal: width } },
+                });
+            }
+            const id = document.getElementById('win').value;
+            if (!id) {
+                throw new Error('janela');
+            }
+            const picked = await window.vdz.choose(id);
+            if (!picked) {
+                throw new Error('janela');
+            }
+            const videoStream = await navigator.mediaDevices.getDisplayMedia({ audio: false, video: true });
+            try {
+                const extra = await startWindowAudio();
+                audioPump = () => extra.stop();
+                return new MediaStream([...videoStream.getVideoTracks(), ...extra.stream.getAudioTracks()]);
+            } catch (err) {
+                releaseAudio();
+                for (const track of videoStream.getTracks()) {
+                    track.stop();
+                }
+                throw err;
+            }
+        }
 
         function stop() {
+            releaseAudio();
             if (!stream) {
                 return;
             }
@@ -167,11 +290,13 @@
             height = Number(size[1]);
             fps = Number(document.getElementById('fps').value);
             try {
-                stream = await navigator.mediaDevices.getDisplayMedia({
-                    audio: true,
-                    video: { frameRate: { ideal: fps, max: fps }, height: { ideal: height }, width: { ideal: width } },
-                });
-            } catch {
+                stream = await capture();
+            } catch (err) {
+                if (err?.message === 'janela') {
+                    document.getElementById('note').textContent = 'escolha a janela';
+                } else if (err?.message === 'audio') {
+                    document.getElementById('note').textContent = 'sem áudio da janela';
+                }
                 return;
             } finally {
                 starting = false;
@@ -187,6 +312,35 @@
             go.textContent = 'stop';
             send({ type: 'broadcaster' });
         };
+
+        const winSelect = document.getElementById('win');
+        if (window.vdz) {
+            const refresh = () => {
+                const current = winSelect.value;
+                window.vdz
+                    .windows()
+                    .then((list) => {
+                        winSelect.replaceChildren();
+                        const blank = document.createElement('option');
+                        blank.value = '';
+                        blank.textContent = 'janela';
+                        winSelect.append(blank);
+                        for (const item of list) {
+                            const option = document.createElement('option');
+                            option.value = item.id;
+                            option.textContent = item.name;
+                            winSelect.append(option);
+                        }
+                        if ([...winSelect.options].some((option) => option.value === current)) {
+                            winSelect.value = current;
+                        }
+                        winSelect.hidden = false;
+                    })
+                    .catch((err) => console.error(err));
+            };
+            winSelect.addEventListener('focus', refresh);
+            refresh();
+        }
     </script>
 </body>
 

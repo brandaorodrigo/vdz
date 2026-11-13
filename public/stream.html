@@ -8,16 +8,17 @@
 
 <body>
     <select id="res">
-        <option value="427x240">240p</option>
-        <option value="854x480">480p</option>
-        <option value="1280x720">720p</option>
         <option value="1920x1080">1080p</option>
+        <option value="1280x720">720p</option>
+        <option value="854x480">480p</option>
     </select>
     <select id="fps">
-        <option value="30">30 fps</option>
         <option value="60">60 fps</option>
+        <option value="30">30 fps</option>
+        <option value="24">24 fps</option>
     </select>
     <button id="go" type="button">stream</button>
+    <span id="note"></span>
     <script>
         const MIN_BITRATE = 4_000_000;
         const MAX_BITRATE = 40_000_000;
@@ -60,6 +61,10 @@
             pcs.set(id, pc);
             ice.set(id, []);
             const sender = pc.addTrack(stream.getVideoTracks()[0], stream);
+            const audio = stream.getAudioTracks()[0];
+            if (audio) {
+                pc.addTrack(audio, stream);
+            }
             pc.onicecandidate = (e) => {
                 if (e.candidate) {
                     send({ candidate: e.candidate, id, type: 'candidate' });
@@ -76,6 +81,11 @@
         }
 
         async function handle(msg) {
+            if (msg.type === 'full') {
+                stop();
+                document.getElementById('note').textContent = 'limite de 4';
+                return;
+            }
             if (msg.type === 'watcher' && stream) {
                 await connectViewer(msg.id);
                 return;
@@ -151,13 +161,14 @@
                 return;
             }
             starting = true;
+            document.getElementById('note').textContent = '';
             const size = document.getElementById('res').value.split('x');
             width = Number(size[0]);
             height = Number(size[1]);
             fps = Number(document.getElementById('fps').value);
             try {
                 stream = await navigator.mediaDevices.getDisplayMedia({
-                    audio: false,
+                    audio: true,
                     video: { frameRate: { ideal: fps, max: fps }, height: { ideal: height }, width: { ideal: width } },
                 });
             } catch {

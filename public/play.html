@@ -9,42 +9,207 @@
         body {
             margin: 0;
             height: 100%;
-            background: #000;
+            background: #222;
             overflow: hidden;
         }
 
+        #grid {
+            position: relative;
+            display: grid;
+            gap: 4px;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        #grid[data-n="2"],
+        #grid[data-n="3"],
+        #grid[data-n="4"] {
+            background: #222;
+        }
+
+        #grid[data-n="1"] {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+        }
+
+        #grid[data-n="2"] {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr;
+        }
+
+        #grid[data-n="3"] {
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        #grid[data-n="3"] .tile:nth-child(1) {
+            grid-column: 1 / span 2;
+        }
+
+        #grid[data-n="3"] .tile:nth-child(2) {
+            grid-column: 3 / span 2;
+        }
+
+        #grid[data-n="3"] .tile:nth-child(3) {
+            grid-column: 2 / span 2;
+        }
+
+        #grid[data-n="4"] {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .tile {
+            min-width: 0;
+            min-height: 0;
+            background: #000;
+        }
+
         video {
+            display: block;
             width: 100%;
             height: 100%;
             object-fit: contain;
             background: #000;
         }
+
+        .fullscreen {
+            position: absolute;
+            z-index: 999;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px;
+            border-radius: 50px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .fullscreen.on {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        @media (max-width: 1280px) {
+            #grid[data-n="2"] {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr;
+            }
+
+            #grid[data-n="3"] {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr 1fr;
+            }
+
+            #grid[data-n="3"] .tile:nth-child(1),
+            #grid[data-n="3"] .tile:nth-child(2),
+            #grid[data-n="3"] .tile:nth-child(3) {
+                grid-column: auto;
+            }
+
+            #grid[data-n="4"] {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr 1fr 1fr;
+            }
+        }
     </style>
 </head>
 
 <body>
-    <video autoplay id="v" playsinline>
-        <track kind="captions" label="legendas" src="data:text/vtt,WEBVTT" srclang="pt">
-    </video>
+    <div data-n="0" id="grid">
+        <button class="fullscreen" id="fullscreen" type="button">full</button>
+    </div>
     <script>
-        const v = document.getElementById('v');
-        let pc = null;
-        const pending = [];
+        function fullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+                return;
+            }
+            document.documentElement.requestFullscreen();
+        }
+
+        const grid = document.getElementById('grid');
+        const fsBtn = document.getElementById('fullscreen');
+
+        fsBtn.addEventListener('click', fullscreen);
+
+        let fsIdle;
+        function revealFullscreen() {
+            fsBtn.classList.add('on');
+            clearTimeout(fsIdle);
+            fsIdle = setTimeout(() => fsBtn.classList.remove('on'), 2000);
+        }
+        grid.addEventListener('mousemove', revealFullscreen);
+        grid.addEventListener('mouseleave', () => {
+            clearTimeout(fsIdle);
+            fsBtn.classList.remove('on');
+        });
+        const peers = new Map();
+        const pending = new Map();
 
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
-        function peer() {
-            if (pc) {
-                pc.close();
+        function layout() {
+            grid.dataset.n = String(peers.size);
+        }
+
+        function addTile(id) {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            const video = document.createElement('video');
+            video.autoplay = true;
+            video.controls = true;
+            video.playsInline = true;
+            video.volume = 0;
+            video.muted = true;
+            const cap = document.createElement('track');
+            cap.kind = 'captions';
+            cap.label = 'legendas';
+            cap.srclang = 'pt';
+            cap.src = 'data:text/vtt,WEBVTT';
+            video.append(cap);
+            tile.append(video);
+            const peer = { pc: null, tile, video };
+            peers.set(id, peer);
+            const next = [...peers.keys()].filter((key) => key > id).sort((a, b) => a - b)[0];
+            grid.insertBefore(tile, next === undefined ? null : peers.get(next).tile);
+            layout();
+            return peer;
+        }
+
+        function drop(id) {
+            const peer = peers.get(id);
+            pending.delete(id);
+            if (!peer) {
+                return;
             }
-            pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            if (peer.pc) {
+                peer.pc.close();
+            }
+            peer.video.srcObject = null;
+            peer.tile.remove();
+            peers.delete(id);
+            layout();
+        }
+
+        function connect(id) {
+            const peer = peers.get(id) || addTile(id);
+            if (peer.pc) {
+                peer.pc.close();
+            }
+            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            peer.pc = pc;
             pc.ontrack = (e) => {
-                v.srcObject = e.streams[0];
-                v.play().catch(() => { });
+                if (peer.video.srcObject !== e.streams[0]) {
+                    peer.video.srcObject = e.streams[0];
+                }
+                peer.video.play().catch(() => { });
             };
             pc.onicecandidate = (e) => {
                 if (e.candidate && ws.readyState === 1) {
-                    ws.send(JSON.stringify({ candidate: e.candidate, type: 'candidate' }));
+                    ws.send(JSON.stringify({ candidate: e.candidate, id, type: 'candidate' }));
                 }
             };
             return pc;
@@ -52,31 +217,31 @@
 
         async function handle(msg) {
             if (msg.type === 'offer') {
-                const early = pending.splice(0);
-                const conn = peer();
+                const early = pending.get(msg.id) || [];
+                pending.set(msg.id, []);
+                const conn = connect(msg.id);
                 await conn.setRemoteDescription(msg.sdp);
                 const answer = await conn.createAnswer();
                 await conn.setLocalDescription(answer);
-                ws.send(JSON.stringify({ sdp: conn.localDescription, type: 'answer' }));
+                ws.send(JSON.stringify({ id: msg.id, sdp: conn.localDescription, type: 'answer' }));
                 for (const c of early) {
                     await conn.addIceCandidate(c);
                 }
                 return;
             }
             if (msg.type === 'candidate') {
-                if (pc?.remoteDescription) {
-                    await pc.addIceCandidate(msg.candidate);
+                const peer = peers.get(msg.id);
+                if (peer?.pc?.remoteDescription) {
+                    await peer.pc.addIceCandidate(msg.candidate);
                 } else {
-                    pending.push(msg.candidate);
+                    const list = pending.get(msg.id) || [];
+                    list.push(msg.candidate);
+                    pending.set(msg.id, list);
                 }
                 return;
             }
             if (msg.type === 'stop') {
-                if (pc) {
-                    pc.close();
-                }
-                pc = null;
-                v.srcObject = null;
+                drop(msg.id);
             }
         }
 

@@ -19,7 +19,8 @@ app.get('/play', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'play.html'));
 });
 
-let broadcaster = null;
+const MAX_BROADCASTERS = 4;
+const broadcasters = new Map();
 const watchers = new Map();
 let nextId = 1;
 
@@ -39,62 +40,76 @@ wss.on('connection', (ws) => {
         }
 
         if (msg.type === 'broadcaster') {
-            const prev = broadcaster;
-            broadcaster = ws;
-            if (prev && prev !== ws) {
-                prev.close();
+            if (ws.role) {
+                return;
             }
-            for (const id of watchers.keys()) {
-                send(ws, { id, type: 'watcher' });
+            if (broadcasters.size >= MAX_BROADCASTERS) {
+                send(ws, { type: 'full' });
+                return;
+            }
+            const id = nextId++;
+            ws.role = 'broadcaster';
+            ws.id = id;
+            broadcasters.set(id, ws);
+            for (const watcherId of watchers.keys()) {
+                send(ws, { id: watcherId, type: 'watcher' });
             }
             return;
         }
 
-        if (msg.type === 'stop' && ws === broadcaster) {
-            broadcaster = null;
+        if (msg.type === 'stop' && ws.role === 'broadcaster') {
+            broadcasters.delete(ws.id);
+            ws.role = null;
             for (const watcher of watchers.values()) {
-                send(watcher, { type: 'stop' });
+                send(watcher, { id: ws.id, type: 'stop' });
             }
             return;
         }
 
         if (msg.type === 'watcher') {
+            if (ws.role) {
+                return;
+            }
             const id = nextId++;
+            ws.role = 'watcher';
             ws.id = id;
             watchers.set(id, ws);
-            send(broadcaster, { id, type: 'watcher' });
+            for (const broadcaster of broadcasters.values()) {
+                send(broadcaster, { id, type: 'watcher' });
+            }
             return;
         }
 
-        if (msg.type === 'offer') {
-            send(watchers.get(msg.id), { sdp: msg.sdp, type: 'offer' });
+        if (msg.type === 'offer' && ws.role === 'broadcaster') {
+            send(watchers.get(msg.id), { id: ws.id, sdp: msg.sdp, type: 'offer' });
             return;
         }
 
-        if (msg.type === 'answer') {
-            send(broadcaster, { id: ws.id, sdp: msg.sdp, type: 'answer' });
+        if (msg.type === 'answer' && ws.role === 'watcher') {
+            send(broadcasters.get(msg.id), { id: ws.id, sdp: msg.sdp, type: 'answer' });
             return;
         }
 
         if (msg.type === 'candidate') {
-            if (ws === broadcaster) {
-                send(watchers.get(msg.id), { candidate: msg.candidate, type: 'candidate' });
-            } else {
-                send(broadcaster, { candidate: msg.candidate, id: ws.id, type: 'candidate' });
+            if (ws.role === 'broadcaster') {
+                send(watchers.get(msg.id), { candidate: msg.candidate, id: ws.id, type: 'candidate' });
+            } else if (ws.role === 'watcher') {
+                send(broadcasters.get(msg.id), { candidate: msg.candidate, id: ws.id, type: 'candidate' });
             }
         }
     });
 
     ws.on('close', () => {
-        if (ws === broadcaster) {
-            broadcaster = null;
+        if (ws.role === 'broadcaster' && broadcasters.delete(ws.id)) {
             for (const watcher of watchers.values()) {
-                send(watcher, { type: 'stop' });
+                send(watcher, { id: ws.id, type: 'stop' });
             }
             return;
         }
-        if (ws.id && watchers.delete(ws.id)) {
-            send(broadcaster, { id: ws.id, type: 'watcher-gone' });
+        if (ws.role === 'watcher' && watchers.delete(ws.id)) {
+            for (const broadcaster of broadcasters.values()) {
+                send(broadcaster, { id: ws.id, type: 'watcher-gone' });
+            }
         }
     });
 });

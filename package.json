@@ -1,14 +1,12 @@
 {
     "dependencies": {
         "@biomejs/biome": "^2.6.7",
+        "express": "^4.21.2",
         "ws": "^8.18.3"
     },
-    "description": "compartilhamento de tela",
-    "main": "server.js",
     "name": "vdz",
     "private": true,
     "scripts": {
         "start": "node server.js"
-    },
-    "version": "1.14"
+    }
 }

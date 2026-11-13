@@ -3,95 +3,179 @@
 
 <head>
     <meta charset="utf-8">
-    <meta content="width=device-width, initial-scale=1" name="viewport">
-    <title>vdz</title>
-    <link href="/favicon.ico" rel="icon" sizes="48x48">
-    <link href="/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png">
-    <link href="/favicon-16x16.png" rel="icon" sizes="16x16" type="image/png">
-    <link href="/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
-    <link href="/site.webmanifest" rel="manifest">
-    <link href="https://fonts.googleapis.com" rel="preconnect">
-    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="/style.css" rel="stylesheet">
+    <title>transmitir</title>
 </head>
 
-<body class="stream">
-    <main>
-        <table class="lives">
-            <thead>
-                <tr>
-                    <th>Transmissões</th>
-                </tr>
-            </thead>
-            <tbody id="lives">
-                <tr>
-                    <td class="empty">Nenhuma transmissão no momento</td>
-                </tr>
-            </tbody>
-        </table>
-    </main>
-    <a aria-label="Voltar" class="icon-btn stream-back" data-tooltip="Voltar" href="/" target="_top"><span
-            aria-hidden="true" class="icon">arrow_back</span></a>
+<body>
+    <select id="res">
+        <option value="427x240">427x240</option>
+        <option value="854x480">854x480</option>
+        <option value="1280x720">1280x720</option>
+        <option value="1920x1080">1920x1080</option>
+    </select>
+    <select id="fps">
+        <option value="30">30</option>
+        <option value="60">60</option>
+    </select>
+    <button id="go" type="button">transmitir</button>
     <script>
-        const livesBody = document.getElementById('lives');
+        const MIN_BITRATE = 4_000_000;
+        const MAX_BITRATE = 40_000_000;
+        const pcs = new Map();
+        const ice = new Map();
+        let stream = null;
+        let width = 1280;
+        let height = 720;
+        let fps = 30;
 
-        function renderLives(names) {
-            livesBody.replaceChildren();
-            if (names.length === 0) {
-                const row = document.createElement('tr');
-                const cell = document.createElement('td');
-                cell.className = 'empty';
-                cell.textContent = 'Nenhuma transmissão no momento';
-                row.append(cell);
-                livesBody.append(row);
+        const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+
+        function send(msg) {
+            const data = JSON.stringify(msg);
+            if (ws.readyState === 1) {
+                ws.send(data);
+            } else {
+                ws.addEventListener('open', () => ws.send(data), { once: true });
+            }
+        }
+
+        async function setSender(sender) {
+            const params = sender.getParameters();
+            if (!params.encodings?.length) {
+                params.encodings = [{}];
+            }
+            const settings = sender.track.getSettings();
+            const scale = Math.max(settings.width ? settings.width / width : 1, settings.height ? settings.height / height : 1);
+            params.encodings[0].minBitrate = MIN_BITRATE;
+            params.encodings[0].maxBitrate = MAX_BITRATE;
+            params.encodings[0].maxFramerate = fps;
+            if (scale > 1) {
+                params.encodings[0].scaleResolutionDownBy = scale;
+            }
+            await sender.setParameters(params);
+        }
+
+        async function connectViewer(id) {
+            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            pcs.set(id, pc);
+            ice.set(id, []);
+            const sender = pc.addTrack(stream.getVideoTracks()[0], stream);
+            pc.onicecandidate = (e) => {
+                if (e.candidate) {
+                    send({ candidate: e.candidate, id, type: 'candidate' });
+                }
+            };
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            try {
+                await setSender(sender);
+            } catch (err) {
+                console.error(err);
+            }
+            send({ id, sdp: pc.localDescription, type: 'offer' });
+        }
+
+        async function handle(msg) {
+            if (msg.type === 'watcher' && stream) {
+                await connectViewer(msg.id);
                 return;
             }
-            for (const name of names) {
-                const row = document.createElement('tr');
-                const cell = document.createElement('td');
-                const link = document.createElement('a');
-                link.href = `/${encodeURIComponent(name)}`;
-                link.textContent = name;
-                cell.append(link);
-                row.append(cell);
-                livesBody.append(row);
+            if (msg.type === 'answer') {
+                const pc = pcs.get(msg.id);
+                if (!pc) {
+                    return;
+                }
+                await pc.setRemoteDescription(msg.sdp);
+                for (const c of ice.get(msg.id) || []) {
+                    await pc.addIceCandidate(c);
+                }
+                ice.set(msg.id, []);
+                return;
+            }
+            if (msg.type === 'candidate') {
+                const pc = pcs.get(msg.id);
+                if (!pc?.remoteDescription) {
+                    if (!ice.has(msg.id)) {
+                        ice.set(msg.id, []);
+                    }
+                    ice.get(msg.id).push(msg.candidate);
+                    return;
+                }
+                await pc.addIceCandidate(msg.candidate);
+                return;
+            }
+            if (msg.type === 'watcher-gone') {
+                const pc = pcs.get(msg.id);
+                if (pc) {
+                    pc.close();
+                }
+                pcs.delete(msg.id);
+                ice.delete(msg.id);
             }
         }
 
-        async function loadLives() {
+        let chain = Promise.resolve();
+        ws.onmessage = (ev) => {
+            const msg = JSON.parse(ev.data);
+            chain = chain.then(() => handle(msg)).catch((err) => console.error(err));
+        };
+
+        const go = document.getElementById('go');
+        let starting = false;
+
+        function stop() {
+            if (!stream) {
+                return;
+            }
+            const current = stream;
+            stream = null;
+            for (const track of current.getTracks()) {
+                track.onended = null;
+                track.stop();
+            }
+            for (const pc of pcs.values()) {
+                pc.close();
+            }
+            pcs.clear();
+            ice.clear();
+            go.textContent = 'transmitir';
+            send({ type: 'stop' });
+        }
+
+        go.onclick = async () => {
+            if (stream) {
+                stop();
+                return;
+            }
+            if (starting) {
+                return;
+            }
+            starting = true;
+            const size = document.getElementById('res').value.split('x');
+            width = Number(size[0]);
+            height = Number(size[1]);
+            fps = Number(document.getElementById('fps').value);
             try {
-                const response = await fetch('/api/rooms', { cache: 'no-store' });
-                if (!response.ok) {
-                    return;
-                }
-                const data = await response.json();
-                if (!data || !Array.isArray(data.rooms)) {
-                    return;
-                }
-                renderLives(data.rooms.filter((name) => typeof name === 'string'));
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    audio: false,
+                    video: { frameRate: { ideal: fps, max: fps }, height: { ideal: height }, width: { ideal: width } },
+                });
             } catch {
-                // Mantém a lista que já está na tela.
+                return;
+            } finally {
+                starting = false;
             }
-        }
-
-        loadLives();
-        setInterval(loadLives, 5000);
-
-        if (window.parent !== window) {
-            let lastNotice = 0;
-            const notice = () => {
-                const now = Date.now();
-                if (now - lastNotice < 150) {
-                    return;
-                }
-                lastNotice = now;
-                window.parent.postMessage({ source: 'vdz-watch', type: 'pointer' }, location.origin);
-            };
-            document.addEventListener('pointermove', notice);
-            document.addEventListener('pointerdown', notice);
-        }
+            const track = stream.getVideoTracks()[0];
+            try {
+                await track.applyConstraints({ frameRate: { ideal: fps, max: fps } });
+            } catch { }
+            if (!stream) {
+                return;
+            }
+            track.onended = () => stop();
+            go.textContent = 'parar';
+            send({ type: 'broadcaster' });
+        };
     </script>
 </body>
 

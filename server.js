@@ -3,6 +3,36 @@ const path = require('path');
 const express = require('express');
 const { WebSocketServer } = require('ws');
 
+// TURN (opcional): defina no ambiente antes de `npm start`
+// TURN_URLS=turn:global.relay.metered.ca:80,turns:global.relay.metered.ca:443?transport=tcp
+// TURN_USERNAME=...
+// TURN_CREDENTIAL=...
+
+const STUN_URLS = [
+    'stun:stun.l.google.com:19302',
+    'stun:stun1.l.google.com:19302',
+    'stun:stun2.l.google.com:19302',
+    'stun:stun3.l.google.com:19302',
+    'stun:stun4.l.google.com:19302',
+    'stun:stun.services.mozilla.com',
+    'stun:stun.stunprotocol.org:3478',
+];
+
+function iceServersForClient() {
+    const iceServers = [{ urls: STUN_URLS }];
+    const turnUrls = process.env.TURN_URLS;
+    const username = process.env.TURN_USERNAME;
+    const credential = process.env.TURN_CREDENTIAL;
+    if (turnUrls && username && credential) {
+        iceServers.push({
+            credential,
+            urls: turnUrls.split(',').map((s) => s.trim()).filter(Boolean),
+            username,
+        });
+    }
+    return { iceServers };
+}
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
@@ -17,6 +47,14 @@ app.get('/stream', (_req, res) => {
 
 app.get('/play', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'play.html'));
+});
+
+app.get('/rtc-ice.js', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'rtc-ice.js'));
+});
+
+app.get('/api/ice', (_req, res) => {
+    res.json(iceServersForClient());
 });
 
 let broadcaster = null;

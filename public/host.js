@@ -1,6 +1,6 @@
 const PING_MS = 4 * 60 * 1000;
 
-const ICE_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+const ICE_SERVERS = [{ urls: ['stun:stun.cloudflare.com:3478'] }];
 
 const BITRATES = new Map([
     ['480:30', 10_000_000],

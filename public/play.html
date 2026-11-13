@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>assistir</title>
+    <title>play</title>
     <style>
         html,
         body {
@@ -26,21 +26,18 @@
     <video autoplay id="v" playsinline>
         <track kind="captions" label="legendas" src="data:text/vtt,WEBVTT" srclang="pt">
     </video>
-    <script src="/rtc-ice.js"></script>
     <script>
-        const iceServersReady = getIceServers();
         const v = document.getElementById('v');
         let pc = null;
         const pending = [];
 
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
-        async function peer() {
+        function peer() {
             if (pc) {
                 pc.close();
             }
-            const iceServers = await iceServersReady;
-            pc = new RTCPeerConnection({ iceServers });
+            pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
             pc.ontrack = (e) => {
                 v.srcObject = e.streams[0];
                 v.play().catch(() => { });
@@ -56,7 +53,7 @@
         async function handle(msg) {
             if (msg.type === 'offer') {
                 const early = pending.splice(0);
-                const conn = await peer();
+                const conn = peer();
                 await conn.setRemoteDescription(msg.sdp);
                 const answer = await conn.createAnswer();
                 await conn.setLocalDescription(answer);

@@ -3,25 +3,23 @@
 
 <head>
     <meta charset="utf-8">
-    <title>transmitir</title>
+    <title>stream</title>
 </head>
 
 <body>
     <select id="res">
-        <option value="427x240">427x240</option>
-        <option value="854x480">854x480</option>
-        <option value="1280x720">1280x720</option>
-        <option value="1920x1080">1920x1080</option>
+        <option value="427x240">240p</option>
+        <option value="854x480">480p</option>
+        <option value="1280x720">720p</option>
+        <option value="1920x1080">1080p</option>
     </select>
     <select id="fps">
-        <option value="30">30</option>
-        <option value="60">60</option>
+        <option value="30">30 fps</option>
+        <option value="60">60 fps</option>
     </select>
-    <button id="go" type="button">transmitir</button>
-    <script src="/rtc-ice.js"></script>
+    <button id="go" type="button">stream</button>
     <script>
-        const iceServersReady = getIceServers();
-        const MIN_BITRATE = 10_000_000;
+        const MIN_BITRATE = 4_000_000;
         const MAX_BITRATE = 40_000_000;
         const pcs = new Map();
         const ice = new Map();
@@ -58,8 +56,7 @@
         }
 
         async function connectViewer(id) {
-            const iceServers = await iceServersReady;
-            const pc = new RTCPeerConnection({ iceServers });
+            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
             pcs.set(id, pc);
             ice.set(id, []);
             const sender = pc.addTrack(stream.getVideoTracks()[0], stream);
@@ -141,7 +138,7 @@
             }
             pcs.clear();
             ice.clear();
-            go.textContent = 'transmitir';
+            go.textContent = 'stream';
             send({ type: 'stop' });
         }
 
@@ -176,7 +173,7 @@
                 return;
             }
             track.onended = () => stop();
-            go.textContent = 'parar';
+            go.textContent = 'stop';
             send({ type: 'broadcaster' });
         };
     </script>

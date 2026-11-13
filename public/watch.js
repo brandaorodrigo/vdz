@@ -22,6 +22,7 @@ video.addEventListener('waiting', () => {
     setStatus('Recebendo');
 });
 const viewerCountEl = document.getElementById('viewer-count');
+const ipv6Note = document.getElementById('ipv6-note');
 const VOLUME_MAX = 200;
 const VOLUME_START = 100;
 
@@ -598,4 +599,37 @@ playerMenu.addEventListener('focusout', () => {
     setTimeout(showPlayerMenu, 0);
 });
 
+function probeAddress(url, signal) {
+    return fetch(url, { cache: 'no-store', mode: 'no-cors', signal }).then(
+        () => true,
+        () => false,
+    );
+}
+
+function warnIfIPv6Off() {
+    if (!ipv6Note) {
+        return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+    const ipv4 = probeAddress('https://ipv4.google.com/generate_204', controller.signal);
+    const ipv6 = probeAddress('https://ipv6.google.com/generate_204', controller.signal).then((ok) => {
+        if (ok || controller.signal.aborted) {
+            return ok;
+        }
+        return probeAddress('https://ipv6.test-ipv6.com/', controller.signal);
+    });
+    Promise.all([ipv4, ipv6])
+        .then(([v4, v6]) => {
+            if (v4 && !v6) {
+                ipv6Note.hidden = false;
+            }
+        })
+        .finally(() => {
+            clearTimeout(timer);
+            controller.abort();
+        });
+}
+
 connect();
+warnIfIPv6Off();

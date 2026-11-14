@@ -13,20 +13,22 @@
 </head>
 
 <body>
-    <main>
+    <main class="stream">
         <img alt="vdz" height="70" src="/vdz.png">
-        <select id="res">
-            <!--<option value="1920x1080">1080p</option>-->
-            <option value="1280x720">720p</option>
-            <option value="854x480">480p</option>
-        </select>
-        <select id="fps">
-            <option value="60">60 fps</option>
-            <option value="30">30 fps</option>
-        </select>
+        <div class="pair">
+            <select id="res">
+                <!--<option value="1920x1080">1080p</option>-->
+                <option value="1280x720">720p</option>
+                <option value="854x480">480p</option>
+            </select>
+            <select id="fps">
+                <option value="60">60fps</option>
+                <option value="30">30fps</option>
+            </select>
+        </div>
         <select hidden id="win"></select>
         <div id="preview">
-            <video autoplay muted playsinline aria-label="Prévia da transmissão"></video>
+            <video aria-label="Prévia da transmissão" autoplay muted playsinline></video>
         </div>
         <button id="go" type="button"><img alt="Transmitir" src="/stream.png" width="25"></button>
         <span id="note"></span>
@@ -214,7 +216,7 @@
         function showPreview() {
             previewVideo.srcObject = stream;
             preview.classList.add('on');
-            previewVideo.play().catch(() => {});
+            previewVideo.play().catch(() => { });
         }
 
         function hidePreview() {
@@ -360,7 +362,7 @@
             }
             pcs.clear();
             ice.clear();
-            go.textContent = 'stream';
+            go.classList.remove('stop');
             send({ type: 'stop' });
         }
 
@@ -395,7 +397,7 @@
             if (!stream) {
                 return;
             }
-            go.textContent = 'stop';
+            go.classList.add('stop');
             send({ type: 'broadcaster' });
         };
 

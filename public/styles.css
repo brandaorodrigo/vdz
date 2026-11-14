@@ -119,6 +119,28 @@ video {
     background: #111;
 }
 
+#preview {
+    display: none;
+    width: min(280px, 70vw);
+    aspect-ratio: 16 / 9;
+    margin: 10px 0 8px;
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#preview.on {
+    display: block;
+}
+
+#preview video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+}
+
 #empty {
     position: absolute;
     inset: 0;

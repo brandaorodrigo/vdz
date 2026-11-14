@@ -29,7 +29,7 @@
         },
         "productName": "vdz",
         "win": {
-            "icon": "public/android-chrome-512x512.png",
+            "icon": "electron/icon.png",
             "target": [
                 "nsis"
             ]

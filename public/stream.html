@@ -25,6 +25,9 @@
             <option value="30">30 fps</option>
         </select>
         <select hidden id="win"></select>
+        <div id="preview">
+            <video autoplay muted playsinline aria-label="Prévia da transmissão"></video>
+        </div>
         <button id="go" type="button"><img alt="Transmitir" src="/stream.png" width="25"></button>
         <span id="note"></span>
     </main>
@@ -203,8 +206,22 @@
         };
 
         const go = document.getElementById('go');
+        const preview = document.getElementById('preview');
+        const previewVideo = preview.querySelector('video');
         let starting = false;
         let audioPump = null;
+
+        function showPreview() {
+            previewVideo.srcObject = stream;
+            preview.classList.add('on');
+            previewVideo.play().catch(() => {});
+        }
+
+        function hidePreview() {
+            preview.classList.remove('on');
+            previewVideo.pause();
+            previewVideo.srcObject = null;
+        }
 
         function releaseAudio() {
             if (!audioPump) {
@@ -327,6 +344,7 @@
         }
 
         function stop() {
+            hidePreview();
             releaseAudio();
             if (!stream) {
                 return;
@@ -370,12 +388,13 @@
                 starting = false;
             }
             const track = stream.getVideoTracks()[0];
+            track.onended = () => stop();
+            showPreview();
             qualityChain = qualityChain.then(() => pushQuality()).catch((err) => console.error(err));
             await qualityChain;
             if (!stream) {
                 return;
             }
-            track.onended = () => stop();
             go.textContent = 'stop';
             send({ type: 'broadcaster' });
         };

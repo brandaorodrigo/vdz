@@ -1,13 +1,10 @@
 const { spawn } = require('node:child_process');
-const https = require('node:https');
 const path = require('node:path');
 const { app, BrowserWindow, desktopCapturer, ipcMain, Menu, session } = require('electron');
-const { close, listen } = require('../server');
 
 app.commandLine.appendSwitch('lang', 'pt-BR');
 
 let win = null;
-let ownsServer = false;
 let pendingVideo = null;
 let activeSource = null;
 let capture = null;
@@ -84,29 +81,6 @@ function stopAudio() {
 }
 
 const streamUrl = 'https://vdz.onrender.com/stream';
-
-function serverUp() {
-    return new Promise((resolve) => {
-        const req = https.get(streamUrl, (res) => {
-            res.resume();
-            resolve(res.statusCode === 200);
-        });
-        req.on('error', () => resolve(false));
-        req.setTimeout(400, () => {
-            req.destroy();
-            resolve(false);
-        });
-    });
-}
-
-async function streamAddress() {
-    if (await serverUp()) {
-        return streamUrl;
-    }
-    ownsServer = true;
-    const number = await listen(80);
-    return `http://127.0.0.1:${number}/stream`;
-}
 
 function sendChunk(gen, data, meta) {
     if (gen !== generation || !win || win.isDestroyed()) {
@@ -218,7 +192,7 @@ function open() {
         width: 720,
     });
     win.once('ready-to-show', () => win.show());
-    return streamAddress().then((url) => win.loadURL(url));
+    return win.loadURL(streamUrl);
 }
 
 app.whenReady().then(() => {
@@ -237,9 +211,6 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
     stopAudio();
-    if (ownsServer) {
-        close();
-    }
 });
 
 app.on('window-all-closed', () => {

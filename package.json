@@ -1,4 +1,7 @@
 {
+    "author": {
+        "name": "Rodrigo Brandão"
+    },
     "build": {
         "appId": "vdz",
         "asar": true,
@@ -52,5 +55,5 @@
         "dist": "node electron/build-audio.js && electron-builder --win nsis",
         "start": "node server.js"
     },
-    "version": "2.0.0"
+    "version": "2.1.0"
 }

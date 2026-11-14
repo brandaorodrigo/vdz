@@ -19,6 +19,10 @@ app.get('/play', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'play.html'));
 });
 
+app.get('/update', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'update.html'));
+});
+
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 const MAX_BROADCASTERS = 4;

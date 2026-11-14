@@ -80,7 +80,7 @@ function stopAudio() {
     child.kill();
 }
 
-const streamUrl = 'https://vdz.onrender.com/stream';
+const streamUrl = `https://vdz.onrender.com/stream?version=${app.getVersion()}`;
 
 function sendChunk(gen, data, meta) {
     if (gen !== generation || !win || win.isDestroyed()) {

@@ -139,6 +139,18 @@ main.stream {
     max-width: 200px;
 }
 
+main.update {
+    max-width: 240px;
+    text-align: center;
+}
+
+main.update p {
+    margin: 18px 0;
+    color: #fff;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
 main.stream .pair {
     display: flex;
     gap: 8px;

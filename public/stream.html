@@ -7,8 +7,6 @@
     <link href="/favicon.ico" rel="icon" sizes="any">
     <link href="/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png">
     <link href="/favicon-16x16.png" rel="icon" sizes="16x16" type="image/png">
-    <link href="/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
-    <link href="/site.webmanifest" rel="manifest">
     <link href="/styles.css" rel="stylesheet">
 </head>
 
@@ -18,9 +16,9 @@
 
         <div class="pair">
             <select id="res">
-                <!--<option value="1920x1080">1080p</option>-->
-                <option value="1280x720">720p</option>
-                <option value="854x480">480p</option>
+                <!--<option value="1920x1080">2160p</option>-->
+                <option value="1280x720">1080p</option>
+                <option value="854x480">720p</option>
             </select>
             <select id="fps">
                 <option value="60">60fps</option>
@@ -35,6 +33,15 @@
         <button id="go" type="button"><img alt="Transmitir" src="/stream.png" width="25"></button>
     </main>
     <script>
+        if (navigator.userAgent.includes('Electron')) {
+            queryString = new URLSearchParams(window.location.search);
+            const version = queryString.get('version');
+            if (version !== '2.1.0') {
+                location.replace('/update');
+                throw new Error('update');
+            }
+        }
+
         const pcs = new Map();
         const ice = new Map();
         let stream = null;

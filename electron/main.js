@@ -179,7 +179,7 @@ function open() {
         autoHideMenuBar: true,
         backgroundColor: '#000000',
         fullscreenable: false,
-        height: 500,
+        height: 520,
         icon: path.join(__dirname, '..', 'public', 'android-chrome-512x512.png'),
         maximizable: false,
         resizable: false,

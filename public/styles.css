@@ -14,7 +14,6 @@ body {
     overflow: hidden;
     place-items: center;
     position: relative;
-    background-image: url("/bg.jpg");
     background-repeat: no-repeat;
     background-position: center center;
     background-size: cover;

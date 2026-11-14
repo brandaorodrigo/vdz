@@ -178,8 +178,11 @@ function open() {
     win = new BrowserWindow({
         autoHideMenuBar: true,
         backgroundColor: '#000000',
-        height: 480,
+        fullscreenable: false,
+        height: 500,
         icon: path.join(__dirname, '..', 'public', 'android-chrome-512x512.png'),
+        maximizable: false,
+        resizable: false,
         show: false,
         title: 'stream',
         webPreferences: {
@@ -189,7 +192,7 @@ function open() {
             preload: path.join(__dirname, 'preload.js'),
             sandbox: true,
         },
-        width: 720,
+        width: 340,
     });
     win.once('ready-to-show', () => win.show());
     return win.loadURL(streamUrl);

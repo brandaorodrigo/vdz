@@ -15,6 +15,7 @@
 <body>
     <main class="stream">
         <img alt="vdz" height="70" src="/vdz.png">
+
         <div class="pair">
             <select id="res">
                 <!--<option value="1920x1080">1080p</option>-->
@@ -27,11 +28,11 @@
             </select>
         </div>
         <select hidden id="win"></select>
+        <span id="note"></span>
         <div id="preview">
             <video aria-label="Prévia da transmissão" autoplay muted playsinline></video>
         </div>
         <button id="go" type="button"><img alt="Transmitir" src="/stream.png" width="25"></button>
-        <span id="note"></span>
     </main>
     <script>
         const pcs = new Map();
@@ -381,9 +382,9 @@
                 stream = await capture();
             } catch (err) {
                 if (err?.message === 'janela') {
-                    document.getElementById('note').textContent = 'escolha a janela';
+                    document.getElementById('note').textContent = 'Escolha a janela';
                 } else if (err?.message === 'audio') {
-                    document.getElementById('note').textContent = 'sem áudio da janela';
+                    document.getElementById('note').textContent = 'Sem áudio da janela';
                 }
                 return;
             } finally {
@@ -414,7 +415,7 @@
                         winSelect.replaceChildren();
                         const blank = document.createElement('option');
                         blank.value = '';
-                        blank.textContent = 'janela';
+                        blank.textContent = 'Selecione a tranmissão...';
                         winSelect.append(blank);
                         for (const item of list) {
                             const option = document.createElement('option');

@@ -32,6 +32,13 @@ main {
     font-weight: 600;
 }
 
+#note {
+    line-height: 2;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
 button {
     display: grid;
     place-items: center;

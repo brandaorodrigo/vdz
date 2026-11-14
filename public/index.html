@@ -3,17 +3,27 @@
 
 <head>
     <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
     <title>vdz</title>
     <link href="/favicon.ico" rel="icon" sizes="any">
     <link href="/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png">
     <link href="/favicon-16x16.png" rel="icon" sizes="16x16" type="image/png">
     <link href="/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
     <link href="/site.webmanifest" rel="manifest">
+    <link href="/styles.css" rel="stylesheet">
 </head>
 
 <body>
-    <h2><a href="/play">play</a></h2>
-    <h4><a href="/vdz_2.0.0.exe">download</a></h4>
+    <main>
+        <img alt="vdz" height="100" src="/vdz.png">
+        <button class="icon-btn play" onclick="window.location.href='/play'" type="button">
+            <img alt="Play" src="/play.png" style="margin:0 0 0 6px" width="40">
+        </button>
+        <button aria-label="Download" class="icon-btn download" onclick="window.location.href='/vdz_2.0.0.exe'"
+            type="button">
+            <img alt="Download" src="/download.png" width="25">
+        </button>
+    </main>
 </body>
 
 </html>

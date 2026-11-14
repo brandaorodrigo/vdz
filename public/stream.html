@@ -9,25 +9,26 @@
     <link href="/favicon-16x16.png" rel="icon" sizes="16x16" type="image/png">
     <link href="/apple-touch-icon.png" rel="apple-touch-icon" sizes="180x180">
     <link href="/site.webmanifest" rel="manifest">
+    <link href="/styles.css" rel="stylesheet">
 </head>
 
 <body>
-    <select id="res">
-        <option value="1920x1080">1080p</option>
-        <option value="1280x720">720p</option>
-        <option value="854x480">480p</option>
-    </select>
-    <select id="fps">
-        <option value="60">60 fps</option>
-        <option value="30">30 fps</option>
-        <option value="24">24 fps</option>
-    </select>
-    <select hidden id="win"></select>
-    <button id="go" type="button">stream</button>
-    <span id="note"></span>
+    <main>
+        <img alt="vdz" height="70" src="/vdz.png">
+        <select id="res">
+            <!--<option value="1920x1080">1080p</option>-->
+            <option value="1280x720">720p</option>
+            <option value="854x480">480p</option>
+        </select>
+        <select id="fps">
+            <option value="60">60 fps</option>
+            <option value="30">30 fps</option>
+        </select>
+        <select hidden id="win"></select>
+        <button id="go" type="button"><img alt="Transmitir" src="/stream.png" width="25"></button>
+        <span id="note"></span>
+    </main>
     <script>
-        const MIN_BITRATE = 2_000_000;
-        const MAX_BITRATE = 6_000_000;
         const pcs = new Map();
         const ice = new Map();
         let stream = null;
@@ -46,6 +47,28 @@
             }
         }
 
+        function targetBitrate() {
+            const pixels = width * height;
+            const hd = pixels >= 1920 * 1080;
+            const sd = pixels >= 1280 * 720;
+            if (fps >= 50) {
+                if (hd) {
+                    return 8_000_000;
+                }
+                if (sd) {
+                    return 4_500_000;
+                }
+                return 2_000_000;
+            }
+            if (hd) {
+                return 5_000_000;
+            }
+            if (sd) {
+                return 2_500_000;
+            }
+            return 1_200_000;
+        }
+
         async function setSender(sender) {
             const params = sender.getParameters();
             if (!params.encodings?.length) {
@@ -53,8 +76,9 @@
             }
             const settings = sender.track.getSettings();
             const scale = Math.max(settings.width ? settings.width / width : 1, settings.height ? settings.height / height : 1, 1);
-            params.encodings[0].minBitrate = MIN_BITRATE;
-            params.encodings[0].maxBitrate = MAX_BITRATE;
+            const bitrate = targetBitrate();
+            params.encodings[0].minBitrate = bitrate;
+            params.encodings[0].maxBitrate = bitrate;
             params.encodings[0].maxFramerate = fps;
             params.encodings[0].scaleResolutionDownBy = scale;
             await sender.setParameters(params);
@@ -79,7 +103,7 @@
                         height: { ideal: height, max: height },
                         width: { ideal: width, max: width },
                     });
-                } catch {}
+                } catch { }
             }
             if (!stream) {
                 return;

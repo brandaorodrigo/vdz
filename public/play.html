@@ -51,10 +51,22 @@
             clearTimeout(fsIdle);
             bar.classList.remove('on');
         });
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            { urls: 'stun:stun.cloudflare.com:3478' },
+        ];
         const peers = new Map();
         const pending = new Map();
 
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+
+        const ping = () => fetch('/ping').catch(() => { });
+        ping();
+        setInterval(ping, 5 * 60 * 1000);
 
         function layout() {
             grid.dataset.n = String(peers.size);
@@ -104,7 +116,7 @@
             if (peer.pc) {
                 peer.pc.close();
             }
-            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            const pc = new RTCPeerConnection({ iceServers });
             peer.pc = pc;
             pc.ontrack = (e) => {
                 if (peer.video.srcObject !== e.streams[0]) {

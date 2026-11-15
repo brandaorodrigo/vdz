@@ -153,15 +153,20 @@ main.update p {
 
 main.stream .pair {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     width: 100%;
     margin-top: 20px;
 }
 
 main.stream .pair select {
-    width: 50%;
+    width: calc(50% - 4px);
     margin: 0;
     min-width: 0;
+}
+
+main.stream .pair select#rate {
+    width: 100%;
 }
 
 main.stream select {

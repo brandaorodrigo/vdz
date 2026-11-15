@@ -23,6 +23,10 @@ app.get('/update', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'update.html'));
 });
 
+app.get('/ping', (_req, res) => {
+    res.status(204).end();
+});
+
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 const MAX_BROADCASTERS = 4;

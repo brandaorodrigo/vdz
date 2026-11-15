@@ -24,6 +24,12 @@
                 <option value="60">60fps</option>
                 <option value="30">30fps</option>
             </select>
+            <select id="rate">
+                <option value="2000000">2 Mbps</option>
+                <option selected value="4000000">4 Mbps</option>
+                <option value="8000000">8 Mbps</option>
+                <option value="16000000">16 Mbps</option>
+            </select>
         </div>
         <select hidden id="win"></select>
         <span id="note"></span>
@@ -42,14 +48,35 @@
             }
         }
 
+        const iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            { urls: 'stun:stun.cloudflare.com:3478' },
+        ];
         const pcs = new Map();
         const ice = new Map();
         let stream = null;
         let width = 1280;
         let height = 720;
         let fps = 30;
+        let bitrate = 4_000_000;
 
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+
+        let awake = 0;
+        function stayAwake(on) {
+            clearInterval(awake);
+            awake = 0;
+            if (!on) {
+                return;
+            }
+            const ping = () => fetch('/ping').catch(() => { });
+            ping();
+            awake = setInterval(ping, 5 * 60 * 1000);
+        }
 
         function send(msg) {
             const data = JSON.stringify(msg);
@@ -60,28 +87,6 @@
             }
         }
 
-        function targetBitrate() {
-            const pixels = width * height;
-            const hd = pixels >= 1920 * 1080;
-            const sd = pixels >= 1280 * 720;
-            if (fps >= 50) {
-                if (hd) {
-                    return 8_000_000;
-                }
-                if (sd) {
-                    return 4_500_000;
-                }
-                return 2_000_000;
-            }
-            if (hd) {
-                return 5_000_000;
-            }
-            if (sd) {
-                return 2_500_000;
-            }
-            return 1_200_000;
-        }
-
         async function setSender(sender) {
             const params = sender.getParameters();
             if (!params.encodings?.length) {
@@ -89,7 +94,6 @@
             }
             const settings = sender.track.getSettings();
             const scale = Math.max(settings.width ? settings.width / width : 1, settings.height ? settings.height / height : 1, 1);
-            const bitrate = targetBitrate();
             params.encodings[0].minBitrate = bitrate;
             params.encodings[0].maxBitrate = bitrate;
             params.encodings[0].maxFramerate = fps;
@@ -102,6 +106,7 @@
             width = Number(size[0]);
             height = Number(size[1]);
             fps = Number(document.getElementById('fps').value);
+            bitrate = Number(document.getElementById('rate').value);
         }
 
         async function pushQuality() {
@@ -142,7 +147,7 @@
         }
 
         async function connectViewer(id) {
-            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            const pc = new RTCPeerConnection({ iceServers });
             pcs.set(id, pc);
             ice.set(id, []);
             const sender = pc.addTrack(stream.getVideoTracks()[0], stream);
@@ -354,6 +359,7 @@
         }
 
         function stop() {
+            stayAwake(false);
             hidePreview();
             releaseAudio();
             if (!stream) {
@@ -407,10 +413,12 @@
             }
             go.classList.add('stop');
             send({ type: 'broadcaster' });
+            stayAwake(true);
         };
 
         document.getElementById('res').addEventListener('change', onQualityChange);
         document.getElementById('fps').addEventListener('change', onQualityChange);
+        document.getElementById('rate').addEventListener('change', onQualityChange);
 
         const winSelect = document.getElementById('win');
         if (window.vdz) {

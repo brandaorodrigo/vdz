@@ -57,20 +57,8 @@ button:hover {
     background: #aaa;
 }
 
-button.play {
-    width: 90px;
-    height: 90px;
-    margin: 30px 0;
-    background: #444444;
-
-    img {
-        margin: 0 0 0 6px;
-        width: 40px;
-    }
-}
-
-button.play:hover {
-    background: #888888;
+#list + button.download {
+    margin-top: 28px;
 }
 
 #stage {
@@ -151,26 +139,22 @@ main.stream input:disabled {
     opacity: 0.6;
 }
 
-main.online {
-    width: min(340px, calc(100% - 32px));
+#none {
+    margin: 28px 0 0;
 }
 
-main.online .none {
-    margin: 36px 0 0;
-}
-
-main.online ul {
-    width: 100%;
+#list {
+    width: min(340px, calc(100vw - 32px));
     margin: 28px 0 0;
     padding: 0;
     list-style: none;
 }
 
-main.online li + li {
+#list li + li {
     margin-top: 10px;
 }
 
-main.online a {
+#list a {
     display: block;
     box-sizing: border-box;
     padding: 12px 14px;
@@ -184,7 +168,7 @@ main.online a {
     text-decoration: none;
 }
 
-main.online a:hover {
+#list a:hover {
     border-color: #888;
     background: #1a1a1a;
 }

@@ -177,12 +177,15 @@ select {
             background: #222222;
         }
 
-        &:first-child {
+        &:first-child:not(:only-child) {
             border-radius: 12px 12px 0 0;
             border-bottom: 0;
         }
-        &:last-child {
+        &:last-child:not(:only-child) {
             border-radius: 0 0 12px 12px;
+        }
+        &:only-child {
+            border-radius: 12px;
         }
     }
 }

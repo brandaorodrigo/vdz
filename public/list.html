@@ -32,7 +32,7 @@
         }
 
         const list = document.getElementById('list');
-        const none = document.getElementById('none');
+        // const none = document.getElementById('none');
         const footer = document.getElementById('footer');
 
         // O download só aparece na página aberta sozinha (?unique=1), não nos quadros do mosaico.
@@ -46,7 +46,7 @@
         function render(people) {
             list.replaceChildren();
             const online = people.filter((person) => /^[a-z0-9]+$/.test(person.id));
-            none.hidden = online.length > 0;
+            // none.hidden = online.length > 0;
             list.hidden = online.length === 0;
             for (const person of online) {
                 const link = document.createElement('a');

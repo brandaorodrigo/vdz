@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap");
 
 body {
-    background: linear-gradient(to bottom, #202020, #111111);
+    background: linear-gradient(to bottom, #202020, #101010);
     background-position: center center;
     background-repeat: no-repeat;
     background-size: cover;
@@ -60,7 +60,16 @@ button {
         opacity: 0.8;
     }
     &:hover {
-        background: #aaa;
+        background: #aaaaaa;
+    }
+
+    &:disabled {
+        cursor: default;
+        background: #444444;
+    }
+
+    &:disabled:hover {
+        background: #444444;
     }
 }
 
@@ -193,6 +202,10 @@ iframe {
     }
 }
 
+#footer {
+    margin-top: 30px;
+}
+
 #video {
     background: #111;
     display: block;
@@ -298,7 +311,7 @@ body:has(#videos) {
 #videos {
     display: grid;
     inset: 0;
-    background-color: #222;
+    background-color: #333333;
     overflow: hidden;
     position: fixed;
 }
@@ -356,17 +369,4 @@ body:has(#videos) {
     top: 36px;
     transform: translateX(-50%);
     z-index: 3;
-}
-
-#mosaic button span {
-    margin-top: 0;
-}
-
-#mosaic button:disabled {
-    cursor: default;
-    opacity: 0.4;
-}
-
-#mosaic button:disabled:hover {
-    background: #eee;
 }

@@ -15,7 +15,7 @@
     <main>
         <img alt="vdz" src="/vdz.png">
         <img alt="Ninguém transmitindo" id="none" src="/cloud.png">
-        <ul hidden id="list"></ul>
+        <div hidden id="list"></div>
         <button aria-label="Download" id="download" onclick="window.location.href='/vdz_2.2.0.exe'" type="button">
             <img alt="Download" src="/download.png">
         </button>
@@ -45,12 +45,10 @@
             none.hidden = online.length > 0;
             list.hidden = online.length === 0;
             for (const person of online) {
-                const item = document.createElement('li');
                 const link = document.createElement('a');
                 link.href = `/play?id=${person.id}`;
                 link.textContent = person.name;
-                item.append(link);
-                list.append(item);
+                list.append(link);
             }
         }
 

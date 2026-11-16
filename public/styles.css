@@ -144,7 +144,7 @@ select {
     width: 50%;
 }
 
-#error-message {
+#error {
     background-color: #bb4444;
     border-radius: 10px;
     color: #f3f3f3;
@@ -155,4 +155,33 @@ select {
     text-align: center;
     top: 20px;
     transform: translateX(-50%);
+}
+
+#list {
+    width: 100%;
+    margin: 12px 0;
+
+    a {
+        display: block;
+        box-sizing: border-box;
+        padding: 14px;
+        border: 2px solid #333333;
+        color: #f3f3f3;
+        font-size: 15px;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+
+        &:hover {
+            background: #222222;
+        }
+
+        &:first-child {
+            border-radius: 12px 12px 0 0;
+            border-bottom: 0;
+        }
+        &:last-child {
+            border-radius: 0 0 12px 12px;
+        }
+    }
 }

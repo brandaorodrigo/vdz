@@ -52,7 +52,7 @@
         <video aria-label="Prévia da transmissão" autoplay id="preview" muted playsinline></video>
         <button id="go" type="button"><img alt="Transmitir" src="/stream.png"></button>
     </main>
-    <div id="error-message">
+    <div id="error">
         zdsfdshsgdh kjdsklf gfhdskf dshfldsklsdisdgidfigopdf
     </div>
     <script>
@@ -92,11 +92,11 @@
 
         // Mostra uma mensagem de erro na tela.
         function showError(message) {
-            document.getElementById('error-message').textContent = JSON.stringify(message);
-            document.getElementById('error-message').style.display = 'block';
+            document.getElementById('error').textContent = JSON.stringify(message);
+            document.getElementById('error').style.display = 'block';
             setTimeout(() => {
-                document.getElementById('error-message').textContent = '';
-                document.getElementById('error-message').style.display = 'none';
+                document.getElementById('error').textContent = '';
+                document.getElementById('error').style.display = 'none';
             }, 5000);
         }
 

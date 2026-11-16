@@ -23,7 +23,6 @@
     "editor.unicodeHighlight.invisibleCharacters": true,
     "editor.wordWrap": "wordWrapColumn",
     "editor.wordWrapColumn": 160,
-    "files.associations": { "*.css": "tailwindcss" },
     "json.schemaDownload.enable": true,
     "workbench.tree.indent": 20
 }

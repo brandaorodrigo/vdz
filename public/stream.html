@@ -12,8 +12,8 @@
 
 <body>
     <main class="stream">
-        <img alt="vdz" height="70" src="/vdz.png">
-
+        <img alt="vdz" src="/vdz.png" width="300">
+        <input autocomplete="off" id="name" maxlength="40" placeholder="Nome da transmissão" type="text">
         <div class="pair">
             <select id="res">
                 <option value="1920x1080">1080p</option>
@@ -25,10 +25,10 @@
                 <option value="30">30fps</option>
             </select>
             <select id="rate">
-                <option value="2000000">2 Mbps</option>
-                <option selected value="4000000">4 Mbps</option>
-                <option value="8000000">8 Mbps</option>
-                <option value="16000000">16 Mbps</option>
+                <option value="2000000">2mbps</option>
+                <option selected value="4000000">4mbps</option>
+                <option value="8000000">8mbps</option>
+                <option value="16000000">16mbps</option>
             </select>
         </div>
         <select hidden id="win"></select>
@@ -171,6 +171,11 @@
         }
 
         async function handle(msg) {
+            if (msg.type === 'need-name') {
+                stop();
+                document.getElementById('note').textContent = 'Coloque o nome';
+                return;
+            }
             if (msg.type === 'full') {
                 stop();
                 document.getElementById('note').textContent = 'limite de 4';
@@ -221,6 +226,7 @@
         };
 
         const go = document.getElementById('go');
+        const nameInput = document.getElementById('name');
         const preview = document.getElementById('preview');
         const previewVideo = preview.querySelector('video');
         let starting = false;
@@ -362,6 +368,7 @@
             stayAwake(false);
             hidePreview();
             releaseAudio();
+            nameInput.disabled = false;
             if (!stream) {
                 return;
             }
@@ -388,6 +395,11 @@
             if (starting) {
                 return;
             }
+            const name = nameInput.value.trim();
+            if (!name) {
+                document.getElementById('note').textContent = 'Coloque o nome';
+                return;
+            }
             starting = true;
             document.getElementById('note').textContent = '';
             readQuality();
@@ -412,7 +424,8 @@
                 return;
             }
             go.classList.add('stop');
-            send({ type: 'broadcaster' });
+            nameInput.disabled = true;
+            send({ name, type: 'broadcaster' });
             stayAwake(true);
         };
 

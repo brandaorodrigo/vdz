@@ -15,6 +15,10 @@ app.get('/stream', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'stream.html'));
 });
 
+app.get('/online', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'online.html'));
+});
+
 app.get('/play', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'play.html'));
 });
@@ -32,12 +36,43 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 const MAX_BROADCASTERS = 4;
 const broadcasters = new Map();
 const watchers = new Map();
+const lobbies = new Set();
 let nextId = 1;
 
 function send(ws, msg) {
     if (ws && ws.readyState === 1) {
         ws.send(JSON.stringify(msg));
     }
+}
+
+function readName(value) {
+    return String(value ?? '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 40);
+}
+
+function onlineList() {
+    return [...broadcasters.entries()].map(([id, socket]) => ({ id, name: socket.name }));
+}
+
+function publishOnline() {
+    const list = onlineList();
+    for (const lobby of lobbies) {
+        send(lobby, { list, type: 'online' });
+    }
+}
+
+function endBroadcast(ws) {
+    if (!broadcasters.delete(ws.id)) {
+        return;
+    }
+    for (const watcher of watchers.values()) {
+        if (watcher.broadcasterId === ws.id) {
+            send(watcher, { id: ws.id, type: 'stop' });
+        }
+    }
+    publishOnline();
 }
 
 wss.on('connection', (ws) => {
@@ -53,6 +88,11 @@ wss.on('connection', (ws) => {
             if (ws.role) {
                 return;
             }
+            const name = readName(msg.name);
+            if (!name) {
+                send(ws, { type: 'need-name' });
+                return;
+            }
             if (broadcasters.size >= MAX_BROADCASTERS) {
                 send(ws, { type: 'full' });
                 return;
@@ -60,19 +100,25 @@ wss.on('connection', (ws) => {
             const id = nextId++;
             ws.role = 'broadcaster';
             ws.id = id;
+            ws.name = name;
             broadcasters.set(id, ws);
-            for (const watcherId of watchers.keys()) {
-                send(ws, { id: watcherId, type: 'watcher' });
-            }
+            publishOnline();
             return;
         }
 
         if (msg.type === 'stop' && ws.role === 'broadcaster') {
-            broadcasters.delete(ws.id);
+            endBroadcast(ws);
             ws.role = null;
-            for (const watcher of watchers.values()) {
-                send(watcher, { id: ws.id, type: 'stop' });
+            return;
+        }
+
+        if (msg.type === 'lobby') {
+            if (ws.role) {
+                return;
             }
+            ws.role = 'lobby';
+            lobbies.add(ws);
+            send(ws, { list: onlineList(), type: 'online' });
             return;
         }
 
@@ -80,13 +126,17 @@ wss.on('connection', (ws) => {
             if (ws.role) {
                 return;
             }
+            const broadcaster = broadcasters.get(Number(msg.id));
+            if (!broadcaster) {
+                send(ws, { type: 'gone' });
+                return;
+            }
             const id = nextId++;
             ws.role = 'watcher';
             ws.id = id;
+            ws.broadcasterId = broadcaster.id;
             watchers.set(id, ws);
-            for (const broadcaster of broadcasters.values()) {
-                send(broadcaster, { id, type: 'watcher' });
-            }
+            send(broadcaster, { id, type: 'watcher' });
             return;
         }
 
@@ -96,30 +146,33 @@ wss.on('connection', (ws) => {
         }
 
         if (msg.type === 'answer' && ws.role === 'watcher') {
-            send(broadcasters.get(msg.id), { id: ws.id, sdp: msg.sdp, type: 'answer' });
+            if (msg.id !== ws.broadcasterId) {
+                return;
+            }
+            send(broadcasters.get(ws.broadcasterId), { id: ws.id, sdp: msg.sdp, type: 'answer' });
             return;
         }
 
         if (msg.type === 'candidate') {
             if (ws.role === 'broadcaster') {
                 send(watchers.get(msg.id), { candidate: msg.candidate, id: ws.id, type: 'candidate' });
-            } else if (ws.role === 'watcher') {
-                send(broadcasters.get(msg.id), { candidate: msg.candidate, id: ws.id, type: 'candidate' });
+            } else if (ws.role === 'watcher' && msg.id === ws.broadcasterId) {
+                send(broadcasters.get(ws.broadcasterId), { candidate: msg.candidate, id: ws.id, type: 'candidate' });
             }
         }
     });
 
     ws.on('close', () => {
-        if (ws.role === 'broadcaster' && broadcasters.delete(ws.id)) {
-            for (const watcher of watchers.values()) {
-                send(watcher, { id: ws.id, type: 'stop' });
-            }
+        if (ws.role === 'broadcaster') {
+            endBroadcast(ws);
+            return;
+        }
+        if (ws.role === 'lobby') {
+            lobbies.delete(ws);
             return;
         }
         if (ws.role === 'watcher' && watchers.delete(ws.id)) {
-            for (const broadcaster of broadcasters.values()) {
-                send(broadcaster, { id: ws.id, type: 'watcher-gone' });
-            }
+            send(broadcasters.get(ws.broadcasterId), { id: ws.id, type: 'watcher-gone' });
         }
     });
 });

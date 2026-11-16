@@ -44,9 +44,11 @@
                         type="text">
                 </td>
             </tr>
-            <tr hidden id="win-row">
+            <tr>
                 <td colspan="3">
-                    <select id="win"></select>
+                    <select id="win">
+                        <option value="">Selecione a janela</option>
+                    </select>
                 </td>
             </tr>
         </table>
@@ -512,7 +514,6 @@
         document.getElementById('rate').addEventListener('change', onQualityChange);
 
         // No Electron, a lista de janelas aparece e é atualizada cada vez que o select ganha foco.
-        const winRow = document.getElementById('win-row');
         const winSelect = document.getElementById('win');
         if (desktop()) {
             const refresh = () => {
@@ -523,7 +524,7 @@
                         winSelect.replaceChildren();
                         const blank = document.createElement('option');
                         blank.value = '';
-                        blank.textContent = 'Selecione a janela...';
+                        blank.textContent = 'Selecione a janela';
                         winSelect.append(blank);
                         for (const item of list) {
                             const option = document.createElement('option');
@@ -535,7 +536,6 @@
                         if ([...winSelect.options].some((option) => option.value === current)) {
                             winSelect.value = current;
                         }
-                        winRow.hidden = false;
                     })
                     .catch((err) => showError(err));
             };

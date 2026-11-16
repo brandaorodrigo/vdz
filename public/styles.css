@@ -49,6 +49,7 @@ button {
     cursor: pointer;
     display: grid;
     height: 56px;
+    color: #444;
     outline: 0;
     padding: 0;
     place-items: center;
@@ -57,6 +58,12 @@ button {
 
     img {
         width: 50%;
+    }
+
+    span {
+        font-size: 32px;
+        line-height: 32px;
+        margin-top: -5px;
     }
 
     &:hover {
@@ -134,11 +141,6 @@ iframe {
     background: #bb4444;
     img {
         filter: brightness(0) invert(1);
-    }
-    span {
-        font-size: 32px;
-        line-height: 32px;
-        margin-top: -5px;
     }
 }
 

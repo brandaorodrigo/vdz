@@ -81,7 +81,7 @@
         // Sinalização com o server.js, na mesma origem da página.
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
-        // Enquanto transmite, chama /ping a cada 5 minutos para o servidor não dormir por inatividade.
+        // Enquanto transmite, chama /ping a cada 1 minuto para o servidor não dormir por inatividade.
         let awake = 0;
         function stayAwake(on) {
             clearInterval(awake);
@@ -91,7 +91,7 @@
             }
             const ping = () => fetch('/ping').catch(() => { });
             ping();
-            awake = setInterval(ping, 5 * 60 * 1000);
+            awake = setInterval(ping, 60 * 1000);
         }
 
         // Envia JSON ao servidor. Se o socket ainda não abriu, espera o evento open.

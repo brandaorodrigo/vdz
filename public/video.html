@@ -117,10 +117,10 @@
         // Sinalização com o server.js, na mesma origem da página.
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
-        // Ping a cada 5 minutos para o servidor não dormir por inatividade.
+        // Ping a cada 1 minuto para o servidor não dormir por inatividade.
         const ping = () => fetch('/ping').catch(() => { });
         ping();
-        setInterval(ping, 5 * 60 * 1000);
+        setInterval(ping, 60 * 1000);
 
         // Abre (ou reabre) a conexão que vai receber o vídeo e o áudio.
         function connect() {

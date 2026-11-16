@@ -6,13 +6,13 @@ Versão atual: **2.2.0**. Interface e comentários em português.
 
 ## Como rodar
 
-- `npm start` sobe só o servidor em `http://localhost:3000` (`node server.js`). Serve para assistir e para o app Electron, que aponta para essa URL.
-- `npm run app` compila `electron/win-audio.exe` se o `.cs` estiver mais novo e abre o Electron. A janela carrega `http://localhost:3000/stream?version=<versão do app>`. O servidor precisa estar no ar.
+- `npm start` sobe só o servidor em `http://localhost:3000` (`node server.js`). Serve para assistir e transmitir pelo navegador, contra esse servidor.
+- `npm run app` compila `electron/win-audio.exe` se o `.cs` estiver mais novo e abre o Electron. A janela carrega `streamUrl` em `electron/main.js`: `https://vdz.onrender.com/stream?version=<versão do app>`. Não usa o servidor local, então edição em `public/` não aparece nele.
 - `npm run dist` faz o mesmo build do capturador e gera o instalador NSIS `vdz_<versão>.exe` (um clique, por usuário, atalho "vdz", idioma pt-BR). O executável nativo entra em `resources/win-audio.exe`.
 
 O compilador é o `csc.exe` do .NET Framework 4.x que já vem no Windows (`Framework64\v4.0.30319`). Não há SDK à parte. `electron/win-audio.exe` não vai para o git.
 
-Há uma URL de produção comentada em `electron/main.js`: `https://vdz.onrender.com/stream`. O app empacotado hoje fala com o localhost.
+`streamUrl` fica antes de `open()`. O app de desenvolvimento e o empacotado usam a mesma URL de produção.
 
 ## Peças
 
@@ -26,20 +26,18 @@ Há uma URL de produção comentada em `electron/main.js`: `https://vdz.onrender
 | Áudio da janela | `electron/win-audio.cs` | Loopback WASAPI do processo da janela |
 | Visual | `public/styles.css` | Único CSS em uso |
 
-`public/play.html` e `public/styles2.css` não entram em nenhuma rota nem são referenciados.
-
 ## Páginas
 
 O Express entrega cada HTML numa rota fixa. `express.static` serve o resto de `public/` com `index: false`, para um `index.html` solto não tomar o lugar de `/`.
 
-- `GET /` — `index.html`. Até quatro iframes de `/list` num mosaico (1 a 4). A barra (menos, mais, tela cheia) aparece com o mouse e some após 3 s parado. O mouse dentro do iframe não borbulha: cada quadro registra `mousemove` no próprio documento.
-- `GET /list` — lista de quem está no ar. Cada nome abre `/video?id=<nome>`. No Electron, redireciona para `/update`. O botão baixa `/vdz_2.2.0.exe`.
+- `GET /` — `index.html`. Mosaico de 1 a 4 quadros. O primeiro já abre `/list?unique=1`; os outros recebem `/list` quando aparecem. A barra (menos, mais, tela cheia) aparece com o mouse e some após 3 s parado. O mouse dentro do iframe não borbulha: cada quadro registra `mousemove` no próprio documento. `mouseleave` espera 200 ms, porque cruzar para a barra também dispara esse evento.
+- `GET /list` — lista de quem está no ar. Cada nome abre `/video?id=<nome>`. No Electron, redireciona para `/update`. O botão de download só aparece com `?unique=1` e baixa `https://github.com/brandaorodrigo/vdz/releases/download/<versão>/vdz_<versão>.exe`.
 - `GET /video` — player de uma live. No Electron, também vai para `/update`.
 - `GET /stream` — tela de transmissão. No Electron, continua só se `?version=` for exatamente `2.2.0`; qualquer outra versão vai para `/update`.
-- `GET /update` — pede para baixar o instalador em `/vdz_2.2.0.exe`.
-- `GET /ping` — `204` vazio. Transmissor e espectador chamam a cada 5 minutos para o host não dormir por inatividade.
+- `GET /update` — pede para baixar o mesmo instalador no GitHub Releases.
+- `GET /ping` — `204` vazio. `/video` chama ao abrir e de novo a cada 1 minuto. `/stream` chama no mesmo intervalo só enquanto a live está no ar (`stayAwake`). Serve para o host não dormir.
 
-A versão está repetida em `package.json`, na checagem de `stream.html` e nos links de download. Ao mudar a versão, os três lugares precisam acompanhar. O instalador gerado se chama `vdz_<versão>.exe`; o arquivo antigo `public/vdz_2.1.0.exe` não é o alvo desses links.
+A versão está em `package.json` (o Electron manda `app.getVersion()` na query), na checagem de `public/stream.html` e nas URLs de `public/list.html` e `public/update.html`. Ao mudar a versão, os quatro lugares precisam acompanhar. O instalador gerado se chama `vdz_<versão>.exe` e o link aponta para o asset dessa tag no GitHub Releases.
 
 ## Papéis no WebSocket
 
@@ -98,7 +96,7 @@ Qualidade (selects em `/stream`, padrão 720p, 60 fps, 4 Mb):
 
 ## Captura no Electron
 
-A janela é 400×700, sem menu, sem redimensionar, fundo preto, `backgroundThrottling: false` para o stream não pausar sem foco. `contextIsolation` e `sandbox` ligados, sem Node na página. A página só vê `window.vdz`, exposto por `preload.js`.
+A janela é 400×700, sem menu, sem redimensionar, fundo preto, oculta até `ready-to-show`. `backgroundThrottling: false` para o stream não pausar sem foco. `contextIsolation` e `sandbox` ligados, sem Node na página. A página só vê `window.vdz`, exposto por `preload.js`. O ícone é `public/android-chrome-512x512.png`.
 
 Em `/stream`, `desktop()` trata `window.vdz` como API nativa só se existirem `choose` e `windows`. No navegador, `<img id="vdz">` ocupa `window.vdz`; nesse caso a captura é `getDisplayMedia({ audio: true, video })`, com o seletor do próprio browser.
 
@@ -119,7 +117,7 @@ No app:
 
 - CommonJS (`require`). Aspas simples, indentação de 4 espaços, linha até 160. O Biome formata e organiza imports/chaves ao salvar (`.vscode/settings.json`, `biome.json`).
 - Comentários em português, no mesmo tom dos arquivos: o que a função faz e a restrição que não é óbvia.
-- Não colocar segredo, TURN ou URL de produção sem ser o lugar que o app realmente usa. A URL do stream do Electron está no topo de `open()` em `electron/main.js` (`streamUrl`).
+- Não colocar segredo ou TURN. A URL do stream do Electron é `streamUrl` em `electron/main.js` (`https://vdz.onrender.com/stream?version=` mais a versão do `package.json`).
 - `server.js` exporta `{ listen, close }`. Rodar o arquivo direto escuta a porta 3000; quem importa chama `listen()`.
 - Não editar `public/vdz_*.exe` como código. Instalador e `win-audio.exe` são gerados.
 - O protocolo não tem autenticação nem sala além do nome. Dois transmissores não compartilham o mesmo nome. Um nome é público para quem alcança o servidor.

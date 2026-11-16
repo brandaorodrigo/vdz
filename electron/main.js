@@ -80,7 +80,9 @@ function stopAudio() {
     child.kill();
 }
 
-const streamUrl = `https://vdz.onrender.com/stream?version=${app.getVersion()}`;
+//const streamUrl = `https://vdz.onrender.com/stream?version=${app.getVersion()}`;
+
+const streamUrl = `http://localhost:3000/stream?version=${app.getVersion()}`;
 
 function sendChunk(gen, data, meta) {
     if (gen !== generation || !win || win.isDestroyed()) {
@@ -179,7 +181,7 @@ function open() {
         autoHideMenuBar: true,
         backgroundColor: '#000000',
         fullscreenable: false,
-        height: 520,
+        height: 730,
         icon: path.join(__dirname, '..', 'public', 'android-chrome-512x512.png'),
         maximizable: false,
         resizable: false,
@@ -192,7 +194,7 @@ function open() {
             preload: path.join(__dirname, 'preload.js'),
             sandbox: true,
         },
-        width: 340,
+        width: 430,
     });
     win.once('ready-to-show', () => win.show());
     return win.loadURL(streamUrl);

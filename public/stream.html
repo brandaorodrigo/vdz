@@ -36,30 +36,28 @@
                 </td>
                 <td>
                     <select id="rate">
-                        <option value="2000000">2 Mb</option>
-                        <option selected value="4000000">4 Mb</option>
-                        <option value="8000000">8 Mb</option>
-                        <option value="16000000">16 Mb</option>
+                        <option value="2000000">2 mb</option>
+                        <option selected value="4000000">4 mb</option>
+                        <option value="8000000">8 mb</option>
+                        <option value="16000000">16 mb</option>
                     </select>
                 </td>
             </tr>
             <tr hidden id="win-row">
-                <td>
+                <td colspan="3">
                     <select id="win"></select>
                 </td>
             </tr>
         </table>
-
-        <video aria-label="Prévia da transmissão" autoplay hidden id="preview" muted playsinline></video>
-
+        <video aria-label="Prévia da transmissão" autoplay id="preview" muted playsinline></video>
         <button id="go" type="button"><img alt="Transmitir" src="/stream.png"></button>
     </main>
     <script>
-        // No app Electron, só a versão 2.1.0 segue nesta página. Outra versão vai para /update.
+        // No app Electron, só a versão segue nesta página. Outra versão vai para /update.
         if (navigator.userAgent.includes('Electron')) {
             queryString = new URLSearchParams(window.location.search);
             const version = queryString.get('version');
-            if (version !== '2.1.0') {
+            if (version !== '2.2.0') {
                 location.replace('/update');
                 throw new Error('update');
             }
@@ -267,7 +265,17 @@
         const go = document.getElementById('go');
         const nameInput = document.getElementById('name');
         const preview = document.getElementById('preview');
-        const previewVideo = preview.querySelector('video');
+
+        // A imagem tem id="vdz", então no navegador window.vdz é essa imagem.
+        // Só a ponte do Electron tem choose e windows.
+        function desktop() {
+            const api = window.vdz;
+            if (!api || typeof api.choose !== 'function' || typeof api.windows !== 'function') {
+                return null;
+            }
+            return api;
+        }
+
         // Impede um segundo clique enquanto a captura ainda não terminou.
         let starting = false;
         // Função que desliga o áudio extra do app Electron, quando ele existe.
@@ -275,15 +283,17 @@
 
         // Mostra a prévia local, sem som (o <video> está muted).
         function showPreview() {
-            previewVideo.srcObject = stream;
+            preview.srcObject = stream;
+            preview.hidden = false;
             preview.classList.add('on');
-            previewVideo.play().catch(() => { });
+            preview.play().catch(() => { });
         }
 
         function hidePreview() {
             preview.classList.remove('on');
-            previewVideo.pause();
-            previewVideo.srcObject = null;
+            preview.hidden = true;
+            preview.pause();
+            preview.srcObject = null;
         }
 
         // Para a captura de áudio da janela no Electron e esquece o callback.
@@ -310,7 +320,7 @@
             let offset = 0;
             let channels = 2;
             // Guarda os pedaços e descarta o que passar de cerca de 1 segundo, para não atrasar.
-            window.vdz.onAudio((payload) => {
+            desktop().onAudio((payload) => {
                 channels = payload.channels || channels;
                 chunks.push(asFloat(payload.samples));
                 let total = 0;
@@ -323,9 +333,9 @@
                     offset = 0;
                 }
             });
-            const meta = await window.vdz.startAudio();
+            const meta = await desktop().startAudio();
             if (!meta) {
-                window.vdz.offAudio();
+                desktop().offAudio();
                 throw new Error('audio');
             }
             const ctx = new AudioContext({ sampleRate: meta.sampleRate || 48000 });
@@ -373,8 +383,8 @@
             mute.connect(ctx.destination);
             return {
                 stop() {
-                    window.vdz.offAudio();
-                    window.vdz.stopAudio();
+                    desktop().offAudio();
+                    desktop().stopAudio();
                     node.disconnect();
                     mute.disconnect();
                     ctx.close();
@@ -385,7 +395,8 @@
 
         // Pede a tela ao navegador. No Electron, a janela vem da lista e o áudio vem à parte.
         async function capture() {
-            if (!window.vdz) {
+            const api = desktop();
+            if (!api) {
                 return navigator.mediaDevices.getDisplayMedia({
                     audio: true,
                     video: { frameRate: { ideal: fps, max: fps }, height: { ideal: height }, width: { ideal: width } },
@@ -395,7 +406,7 @@
             if (!id) {
                 throw new Error('janela');
             }
-            const picked = await window.vdz.choose(id);
+            const picked = await api.choose(id);
             if (!picked) {
                 throw new Error('janela');
             }
@@ -491,11 +502,12 @@
         document.getElementById('rate').addEventListener('change', onQualityChange);
 
         // No Electron, a lista de janelas aparece e é atualizada cada vez que o select ganha foco.
+        const winRow = document.getElementById('win-row');
         const winSelect = document.getElementById('win');
-        if (window.vdz) {
+        if (desktop()) {
             const refresh = () => {
                 const current = winSelect.value;
-                window.vdz
+                desktop()
                     .windows()
                     .then((list) => {
                         winSelect.replaceChildren();
@@ -513,7 +525,7 @@
                         if ([...winSelect.options].some((option) => option.value === current)) {
                             winSelect.value = current;
                         }
-                        winSelect.hidden = false;
+                        winRow.hidden = false;
                     })
                     .catch((err) => console.error(err));
             };

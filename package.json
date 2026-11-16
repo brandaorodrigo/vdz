@@ -55,5 +55,5 @@
         "dist": "node electron/build-audio.js && electron-builder --win nsis",
         "start": "node server.js"
     },
-    "version": "2.1.0"
+    "version": "2.2.0"
 }

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>vdz</title>
+    <link href="/favicon.ico" rel="icon" sizes="any">
+    <link href="/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png">
+    <link href="/favicon-16x16.png" rel="icon" sizes="16x16" type="image/png">
+    <link href="/styles.css" rel="stylesheet">
+</head>
+
+<body>
+    <main>
+        <img alt="vdz" src="/vdz.png">
+        <img alt="Ninguém transmitindo" id="none" src="/cloud.png">
+        <div hidden id="list"></div>
+        <div id="footer">
+            <button aria-label="Download" id="download" onclick="window.location.href='/vdz_2.2.0.exe'" type="button">
+                <img alt="Download" src="/download.png">
+            </button>
+        </div>
+    </main>
+    <script>
+        // A lista de transmissões é só no navegador. O app Electron vai para /update.
+        if (navigator.userAgent.includes('Electron')) {
+            location.replace('/update');
+            throw new Error('update');
+        }
+
+        const list = document.getElementById('list');
+        const none = document.getElementById('none');
+        // Sinalização com o server.js, na mesma origem da página.
+        const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+
+        // Troca a lista por quem está transmitindo. Cada nome abre /video com o id da live.
+        function render(people) {
+            list.replaceChildren();
+            const online = people.filter((person) => /^[a-z0-9]+$/.test(person.id));
+            none.hidden = online.length > 0;
+            list.hidden = online.length === 0;
+            for (const person of online) {
+                const link = document.createElement('a');
+                link.href = `/video?id=${encodeURIComponent(person.id)}`;
+                link.textContent = person.name || person.id;
+                list.append(link);
+            }
+        }
+
+        // Entra como lobby e redesenha a lista sempre que o servidor avisa quem está online.
+        ws.onopen = () => ws.send(JSON.stringify({ type: 'lobby' }));
+        ws.onmessage = (ev) => {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === 'online') {
+                render(msg.list || []);
+            }
+        };
+    </script>
+</body>
+
+</html>

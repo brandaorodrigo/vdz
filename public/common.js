@@ -1,4 +1,4 @@
-// Compartilhado por stream.html e play.html.
+// Compartilhado por stream.html e video.html.
 
 // Servidores STUN usados para descobrir o endereço público na conexão WebRTC.
 window.iceServers = [

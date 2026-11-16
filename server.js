@@ -17,12 +17,16 @@ app.get('/', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+app.get('/list', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'list.html'));
+});
+
 app.get('/stream', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'stream.html'));
 });
 
-app.get('/play', (_req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'play.html'));
+app.get('/video', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'video.html'));
 });
 
 app.get('/update', (_req, res) => {

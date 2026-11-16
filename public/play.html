@@ -12,17 +12,7 @@
 
 <body>
     <div class="idle" id="stage">
-        <video autoplay controls id="view" playsinline>
-            <track default kind="captions" label="legendas" src="data:text/vtt,WEBVTT" srclang="pt">
-        </video>
-        <div aria-label="Ninguém transmitindo" id="empty" role="img">
-            <img alt="Ninguém transmitindo" height="160" src="/cloud.png" width="160">
-        </div>
-        <div class="bar" id="bar">
-            <button aria-label="Tela cheia" id="fullscreen" type="button">
-                <img alt="Tela cheia" src="/fullscreen.png" style="opacity: 0.9;" width="23">
-            </button>
-        </div>
+        <video autoplay hidden id="view"></video>
     </div>
     <script>
         // Assistir é só no navegador. O app Electron é mandado para a página de atualização.
@@ -31,38 +21,13 @@
             throw new Error('update');
         }
 
-        // O botão alterna a tela cheia da página inteira.
-        function fullscreen() {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-                return;
-            }
-            document.documentElement.requestFullscreen();
-        }
-
         const stage = document.getElementById('stage');
-        const bar = document.getElementById('bar');
         const video = document.getElementById('view');
-        const fsBtn = document.getElementById('fullscreen');
         // Qual transmissão assistir, vinda de /play?id=...
         const broadcasterId = Number(new URLSearchParams(location.search).get('id'));
 
         // Começa mudo para o autoplay ser aceito. O controle do <video> libera o som.
         video.muted = true;
-        fsBtn.addEventListener('click', fullscreen);
-
-        // A barra da tela cheia aparece ao mover o mouse e some depois de 2 segundos.
-        let fsIdle;
-        function revealFullscreen() {
-            bar.classList.add('on');
-            clearTimeout(fsIdle);
-            fsIdle = setTimeout(() => bar.classList.remove('on'), 2000);
-        }
-        stage.addEventListener('mousemove', revealFullscreen);
-        stage.addEventListener('mouseleave', () => {
-            clearTimeout(fsIdle);
-            bar.classList.remove('on');
-        });
 
         // Servidores STUN usados para descobrir o endereço público na conexão WebRTC.
         const iceServers = [
@@ -86,9 +51,11 @@
         ping();
         setInterval(ping, 5 * 60 * 1000);
 
-        // Volta à tela de "ninguém transmitindo" e solta o vídeo.
+        // Solta o vídeo e deixa a tela vazia, sem o player.
         function showIdle() {
             stage.classList.add('idle');
+            video.controls = false;
+            video.hidden = true;
             video.srcObject = null;
         }
 
@@ -109,12 +76,14 @@
             }
             const conn = new RTCPeerConnection({ iceServers });
             pc = conn;
-            // A faixa recebida entra no <video> e tira a tela de espera.
+            // A faixa recebida entra no <video> e mostra o player.
             conn.ontrack = (e) => {
                 if (video.srcObject !== e.streams[0]) {
                     video.srcObject = e.streams[0];
                 }
                 stage.classList.remove('idle');
+                video.hidden = false;
+                video.controls = true;
                 video.play().catch(() => { });
             };
             // Cada candidato ICE encontrado volta ao transmissor pelo servidor.

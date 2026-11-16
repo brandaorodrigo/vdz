@@ -13,7 +13,6 @@
 <body>
     <main>
         <img alt="vdz" id="vdz" src="/vdz.png">
-        <span hidden id="note"></span>
         <table>
             <tr>
                 <td colspan="3">
@@ -52,9 +51,7 @@
         <video aria-label="Prévia da transmissão" autoplay id="preview" muted playsinline></video>
         <button id="go" type="button"><img alt="Transmitir" src="/stream.png"></button>
     </main>
-    <div id="error">
-        zdsfdshsgdh kjdsklf gfhdskf dshfldsklsdisdgidfigopdf
-    </div>
+    <div id="error"></div>
     <script>
         // No app Electron, só a versão segue nesta página. Outra versão vai para /update.
         if (navigator.userAgent.includes('Electron')) {
@@ -90,13 +87,16 @@
         // Sinalização com o server.js, na mesma origem da página.
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
-        // Mostra uma mensagem de erro na tela.
+        // Mostra uma mensagem de erro na tela e esconde depois de 5 segundos.
+        let errorTimer = 0;
         function showError(message) {
-            document.getElementById('error').textContent = JSON.stringify(message);
-            document.getElementById('error').style.display = 'block';
-            setTimeout(() => {
-                document.getElementById('error').textContent = '';
-                document.getElementById('error').style.display = 'none';
+            const el = document.getElementById('error');
+            el.textContent = typeof message === 'string' ? message : JSON.stringify(message);
+            el.style.display = 'block';
+            clearTimeout(errorTimer);
+            errorTimer = setTimeout(() => {
+                el.textContent = '';
+                el.style.display = 'none';
             }, 5000);
         }
 
@@ -217,7 +217,7 @@
             // Servidor recusou o nome vazio.
             if (msg.type === 'need-name') {
                 stop();
-                showNote('Nome de transmissão é obrigatório');
+                showError('Nome de transmissão é obrigatório');
                 return;
             }
             // Um espectador entrou: cria a oferta para ele.
@@ -431,11 +431,6 @@
             }
         }
 
-        function showNote(message) {
-            document.getElementById('note').hidden = message === '';
-            document.getElementById('note').textContent = message;
-        }
-
         // Encerra a transmissão: para faixas, fecha os espectadores e avisa o servidor.
         function stop() {
             stayAwake(false);
@@ -471,19 +466,18 @@
             }
             const name = nameInput.value.trim();
             if (!name) {
-                showNote('Nome de transmissão é obrigatório');
+                showError('Nome de transmissão é obrigatório');
                 return;
             }
-            showNote('');
             starting = true;
             readQuality();
             try {
                 stream = await capture();
             } catch (err) {
                 if (err?.message === 'janela') {
-                    showNote('Escolha a janela');
+                    showError('Escolha a janela');
                 } else if (err?.message === 'audio') {
-                    showNote('Sem áudio da janela');
+                    showError('Sem áudio da janela');
                 }
                 return;
             } finally {

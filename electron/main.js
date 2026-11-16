@@ -110,9 +110,7 @@ function stopAudio() {
     child.kill();
 }
 
-//const streamUrl = `https://vdz.onrender.com/stream?version=${app.getVersion()}`;
-
-const streamUrl = `http://localhost:3000/stream?version=${app.getVersion()}`;
+const streamUrl = `https://vdz.onrender.com/stream?version=${app.getVersion()}`;
 
 // Encaminha um trecho à página só se ainda for da captura vigente
 // e a janela continuar aberta.

@@ -192,17 +192,30 @@ select {
     width: 100%;
 }
 
+#controls:not([hidden]) {
+    align-items: center;
+    bottom: 36px;
+    display: flex;
+    gap: 12px;
+    left: 50%;
+    position: fixed;
+    transform: translateX(-50%);
+    z-index: 3;
+}
+
+#leave {
+    color: #f3f3f3;
+    flex: none;
+    font-size: 34px;
+    line-height: 1;
+}
+
 #volume {
     background: #fff;
     border-radius: 999px;
-    bottom: 36px;
     box-sizing: border-box;
-    left: 50%;
     padding: 10px 14px;
-    position: fixed;
-    transform: translateX(-50%);
-    width: min(180px, calc(100vw - 48px));
-    z-index: 3;
+    width: min(180px, calc(100vw - 116px));
 
     input {
         appearance: none;
@@ -261,6 +274,6 @@ select {
     }
 }
 
-#video[hidden] ~ #volume {
+#video[hidden] ~ #controls {
     display: none;
 }

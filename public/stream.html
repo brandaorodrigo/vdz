@@ -457,10 +457,16 @@
             send({ type: 'stop' });
         }
 
+        // Encerra a transmissão e recarrega o HTML da página, para a captura não ficar no documento.
+        function end() {
+            stop();
+            location.reload();
+        }
+
         // O mesmo botão começa e para. Começar captura a tela e se registra como broadcaster.
         go.onclick = async () => {
             if (stream) {
-                stop();
+                end();
                 return;
             }
             if (starting) {
@@ -486,9 +492,9 @@
             } finally {
                 starting = false;
             }
-            // Parar o compartilhamento no navegador também encerra a transmissão.
+            // Parar o compartilhamento no navegador também encerra a transmissão e recarrega a página.
             const track = stream.getVideoTracks()[0];
-            track.onended = () => stop();
+            track.onended = () => end();
             showPreview();
             qualityChain = qualityChain.then(() => pushQuality()).catch((err) => showError(err));
             await qualityChain;

@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap");
 
 body {
-    background-color: #111;
+    background: linear-gradient(to bottom, #202020, #111111);
     background-position: center center;
     background-repeat: no-repeat;
     background-size: cover;
@@ -82,9 +82,9 @@ table {
 input,
 select {
     appearance: none;
-    background-color: #050505;
+    background-color: #0d0d0d;
     border-radius: 10px;
-    border: 2px solid #444444;
+    border: 2px solid #333333;
     color: #ddd;
     cursor: pointer;
     margin-left: -2px;

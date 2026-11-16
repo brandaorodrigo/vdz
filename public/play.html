@@ -25,11 +25,13 @@
         </div>
     </div>
     <script>
+        // Assistir é só no navegador. O app Electron é mandado para a página de atualização.
         if (navigator.userAgent.includes('Electron')) {
             location.replace('/update');
             throw new Error('update');
         }
 
+        // O botão alterna a tela cheia da página inteira.
         function fullscreen() {
             if (document.fullscreenElement) {
                 document.exitFullscreen();
@@ -42,11 +44,14 @@
         const bar = document.getElementById('bar');
         const video = document.getElementById('view');
         const fsBtn = document.getElementById('fullscreen');
+        // Qual transmissão assistir, vinda de /play?id=...
         const broadcasterId = Number(new URLSearchParams(location.search).get('id'));
 
+        // Começa mudo para o autoplay ser aceito. O controle do <video> libera o som.
         video.muted = true;
         fsBtn.addEventListener('click', fullscreen);
 
+        // A barra da tela cheia aparece ao mover o mouse e some depois de 2 segundos.
         let fsIdle;
         function revealFullscreen() {
             bar.classList.add('on');
@@ -59,6 +64,7 @@
             bar.classList.remove('on');
         });
 
+        // Servidores STUN usados para descobrir o endereço público na conexão WebRTC.
         const iceServers = [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
@@ -67,20 +73,26 @@
             { urls: 'stun:stun4.l.google.com:19302' },
             { urls: 'stun:stun.cloudflare.com:3478' },
         ];
+        // Candidatos ICE que chegaram antes da oferta SDP do transmissor.
         const pending = [];
+        // A única conexão desta página, com o transmissor escolhido.
         let pc = null;
 
+        // Sinalização com o server.js, na mesma origem da página.
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
+        // Ping a cada 5 minutos para o servidor não dormir por inatividade.
         const ping = () => fetch('/ping').catch(() => { });
         ping();
         setInterval(ping, 5 * 60 * 1000);
 
+        // Volta à tela de "ninguém transmitindo" e solta o vídeo.
         function showIdle() {
             stage.classList.add('idle');
             video.srcObject = null;
         }
 
+        // Fecha a conexão e esvazia a fila de candidatos.
         function drop() {
             pending.length = 0;
             if (pc) {
@@ -90,12 +102,14 @@
             showIdle();
         }
 
+        // Abre (ou reabre) a conexão que vai receber o vídeo e o áudio.
         function connect() {
             if (pc) {
                 pc.close();
             }
             const conn = new RTCPeerConnection({ iceServers });
             pc = conn;
+            // A faixa recebida entra no <video> e tira a tela de espera.
             conn.ontrack = (e) => {
                 if (video.srcObject !== e.streams[0]) {
                     video.srcObject = e.streams[0];
@@ -103,6 +117,7 @@
                 stage.classList.remove('idle');
                 video.play().catch(() => { });
             };
+            // Cada candidato ICE encontrado volta ao transmissor pelo servidor.
             conn.onicecandidate = (e) => {
                 if (e.candidate && ws.readyState === 1) {
                     ws.send(JSON.stringify({ candidate: e.candidate, id: broadcasterId, type: 'candidate' }));
@@ -111,11 +126,14 @@
             return conn;
         }
 
+        // Trata uma mensagem de sinalização vinda do servidor.
         async function handle(msg) {
+            // A transmissão não existe ou acabou de encerrar.
             if (msg.type === 'gone' || msg.type === 'stop') {
                 drop();
                 return;
             }
+            // Oferta SDP do transmissor. Ignora se for de outra live.
             if (msg.type === 'offer') {
                 if (msg.id !== broadcasterId) {
                     return;
@@ -126,11 +144,13 @@
                 const answer = await conn.createAnswer();
                 await conn.setLocalDescription(answer);
                 ws.send(JSON.stringify({ id: broadcasterId, sdp: conn.localDescription, type: 'answer' }));
+                // Candidatos que chegaram antes da oferta entram agora.
                 for (const c of early) {
                     await conn.addIceCandidate(c);
                 }
                 return;
             }
+            // Candidato ICE do transmissor. Sem a oferta ainda, fica na fila.
             if (msg.type === 'candidate') {
                 if (msg.id !== broadcasterId) {
                     return;
@@ -143,7 +163,9 @@
             }
         }
 
+        // Mensagens do socket são processadas uma depois da outra.
         let chain = Promise.resolve();
+        // Ao conectar, pede para assistir o id da URL. Sem id, a página fica na tela vazia.
         ws.onopen = () => {
             if (!broadcasterId) {
                 return;

@@ -39,6 +39,7 @@
         <button id="go" type="button"><img alt="Transmitir" src="/stream.png" width="25"></button>
     </main>
     <script>
+        // No app Electron, só a versão 2.1.0 segue nesta página. Outra versão vai para /update.
         if (navigator.userAgent.includes('Electron')) {
             queryString = new URLSearchParams(window.location.search);
             const version = queryString.get('version');
@@ -48,6 +49,7 @@
             }
         }
 
+        // Servidores STUN usados para descobrir o endereço público na conexão WebRTC.
         const iceServers = [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
@@ -56,16 +58,22 @@
             { urls: 'stun:stun4.l.google.com:19302' },
             { urls: 'stun:stun.cloudflare.com:3478' },
         ];
+        // Uma RTCPeerConnection por espectador.
         const pcs = new Map();
+        // Candidatos ICE que chegaram antes da resposta SDP daquele espectador.
         const ice = new Map();
+        // Mídia capturada (vídeo da tela e, se houver, áudio).
         let stream = null;
+        // Qualidade pedida nos selects. Lida de novo antes de capturar e a cada mudança.
         let width = 1280;
         let height = 720;
         let fps = 30;
         let bitrate = 4_000_000;
 
+        // Sinalização com o server.js, na mesma origem da página.
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
+        // Enquanto transmite, chama /ping a cada 5 minutos para o servidor não dormir por inatividade.
         let awake = 0;
         function stayAwake(on) {
             clearInterval(awake);
@@ -78,6 +86,7 @@
             awake = setInterval(ping, 5 * 60 * 1000);
         }
 
+        // Envia JSON ao servidor. Se o socket ainda não abriu, espera o evento open.
         function send(msg) {
             const data = JSON.stringify(msg);
             if (ws.readyState === 1) {
@@ -87,6 +96,7 @@
             }
         }
 
+        // Aplica bitrate, fps e redução de resolução no encoder daquele espectador.
         async function setSender(sender) {
             const params = sender.getParameters();
             if (!params.encodings?.length) {
@@ -101,6 +111,7 @@
             await sender.setParameters(params);
         }
 
+        // Copia resolução, fps e bitrate dos selects para as variáveis.
         function readQuality() {
             const size = document.getElementById('res').value.split('x');
             width = Number(size[0]);
@@ -109,6 +120,7 @@
             bitrate = Number(document.getElementById('rate').value);
         }
 
+        // Pede a nova qualidade à faixa de vídeo e repete isso em cada conexão já aberta.
         async function pushQuality() {
             if (!stream) {
                 return;
@@ -140,12 +152,14 @@
             }
         }
 
+        // Mudanças de qualidade entram numa fila para não se atropelarem.
         let qualityChain = Promise.resolve();
         function onQualityChange() {
             readQuality();
             qualityChain = qualityChain.then(() => pushQuality()).catch((err) => console.error(err));
         }
 
+        // Abre a conexão WebRTC com um espectador e manda a oferta SDP.
         async function connectViewer(id) {
             const pc = new RTCPeerConnection({ iceServers });
             pcs.set(id, pc);
@@ -155,6 +169,7 @@
             if (audio) {
                 pc.addTrack(audio, stream);
             }
+            // Cada candidato ICE encontrado é encaminhado ao espectador pelo servidor.
             pc.onicecandidate = (e) => {
                 if (e.candidate) {
                     send({ candidate: e.candidate, id, type: 'candidate' });
@@ -170,21 +185,26 @@
             send({ id, sdp: pc.localDescription, type: 'offer' });
         }
 
+        // Trata uma mensagem de sinalização vinda do servidor.
         async function handle(msg) {
+            // Servidor recusou o nome vazio.
             if (msg.type === 'need-name') {
                 stop();
                 document.getElementById('note').textContent = 'Coloque o nome';
                 return;
             }
+            // Já existem 4 transmissões.
             if (msg.type === 'full') {
                 stop();
                 document.getElementById('note').textContent = 'limite de 4';
                 return;
             }
+            // Um espectador entrou: cria a oferta para ele.
             if (msg.type === 'watcher' && stream) {
                 await connectViewer(msg.id);
                 return;
             }
+            // Resposta SDP do espectador. Candidatos guardados antes dela entram agora.
             if (msg.type === 'answer') {
                 const pc = pcs.get(msg.id);
                 if (!pc) {
@@ -197,6 +217,7 @@
                 ice.set(msg.id, []);
                 return;
             }
+            // Candidato ICE do espectador. Sem a resposta SDP ainda, fica na fila.
             if (msg.type === 'candidate') {
                 const pc = pcs.get(msg.id);
                 if (!pc?.remoteDescription) {
@@ -209,6 +230,7 @@
                 await pc.addIceCandidate(msg.candidate);
                 return;
             }
+            // Espectador saiu: fecha só a conexão dele.
             if (msg.type === 'watcher-gone') {
                 const pc = pcs.get(msg.id);
                 if (pc) {
@@ -219,6 +241,7 @@
             }
         }
 
+        // Mensagens do socket são processadas uma depois da outra.
         let chain = Promise.resolve();
         ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
@@ -229,9 +252,12 @@
         const nameInput = document.getElementById('name');
         const preview = document.getElementById('preview');
         const previewVideo = preview.querySelector('video');
+        // Impede um segundo clique enquanto a captura ainda não terminou.
         let starting = false;
+        // Função que desliga o áudio extra do app Electron, quando ele existe.
         let audioPump = null;
 
+        // Mostra a prévia local, sem som (o <video> está muted).
         function showPreview() {
             previewVideo.srcObject = stream;
             preview.classList.add('on');
@@ -244,6 +270,7 @@
             previewVideo.srcObject = null;
         }
 
+        // Para a captura de áudio da janela no Electron e esquece o callback.
         function releaseAudio() {
             if (!audioPump) {
                 return;
@@ -253,6 +280,7 @@
             release();
         }
 
+        // O app manda amostras num formato ou noutro; o AudioContext precisa de Float32Array.
         function asFloat(samples) {
             if (samples instanceof Float32Array) {
                 return samples;
@@ -260,10 +288,12 @@
             return Float32Array.from(samples);
         }
 
+        // No Electron, o áudio da janela chega em pedaços PCM e vira uma faixa de MediaStream.
         async function startWindowAudio() {
             const chunks = [];
             let offset = 0;
             let channels = 2;
+            // Guarda os pedaços e descarta o que passar de cerca de 1 segundo, para não atrasar.
             window.vdz.onAudio((payload) => {
                 channels = payload.channels || channels;
                 chunks.push(asFloat(payload.samples));
@@ -284,10 +314,12 @@
             }
             const ctx = new AudioContext({ sampleRate: meta.sampleRate || 48000 });
             await ctx.resume();
+            // dest é o stream enviado aos espectadores. mute liga o processador sem tocar o áudio aqui.
             const dest = ctx.createMediaStreamDestination();
             const node = ctx.createScriptProcessor(4096, 0, 2);
             const mute = ctx.createGain();
             mute.gain.value = 0;
+            // Copia o buffer para estéreo. Mono é duplicado; se faltar amostra, sai silêncio.
             node.onaudioprocess = (ev) => {
                 const left = ev.outputBuffer.getChannelData(0);
                 const right = ev.outputBuffer.getChannelData(1);
@@ -335,6 +367,7 @@
             };
         }
 
+        // Pede a tela ao navegador. No Electron, a janela vem da lista e o áudio vem à parte.
         async function capture() {
             if (!window.vdz) {
                 return navigator.mediaDevices.getDisplayMedia({
@@ -364,6 +397,7 @@
             }
         }
 
+        // Encerra a transmissão: para faixas, fecha os espectadores e avisa o servidor.
         function stop() {
             stayAwake(false);
             hidePreview();
@@ -387,6 +421,7 @@
             send({ type: 'stop' });
         }
 
+        // O mesmo botão começa e para. Começar captura a tela e se registra como broadcaster.
         go.onclick = async () => {
             if (stream) {
                 stop();
@@ -415,6 +450,7 @@
             } finally {
                 starting = false;
             }
+            // Parar o compartilhamento no navegador também encerra a transmissão.
             const track = stream.getVideoTracks()[0];
             track.onended = () => stop();
             showPreview();
@@ -433,6 +469,7 @@
         document.getElementById('fps').addEventListener('change', onQualityChange);
         document.getElementById('rate').addEventListener('change', onQualityChange);
 
+        // No Electron, a lista de janelas aparece e é atualizada cada vez que o select ganha foco.
         const winSelect = document.getElementById('win');
         if (window.vdz) {
             const refresh = () => {
@@ -451,6 +488,7 @@
                             option.textContent = item.name;
                             winSelect.append(option);
                         }
+                        // Mantém a janela já escolhida se ela ainda existir na lista nova.
                         if ([...winSelect.options].some((option) => option.value === current)) {
                             winSelect.value = current;
                         }

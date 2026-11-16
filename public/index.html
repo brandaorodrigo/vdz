@@ -24,11 +24,13 @@
         </button>
     </main>
     <script>
+        // A lista de transmissões é só no navegador. O app Electron vai para /update.
         if (navigator.userAgent.includes('Electron')) {
             location.replace('/update');
             throw new Error('update');
         }
 
+        // Dentro de um iframe o botão de download some, para não oferecer o instalador ali.
         const iframe = window.self !== window.top;
         if (iframe) {
             document.getElementById('download').style.display = 'none';
@@ -36,8 +38,10 @@
 
         const list = document.getElementById('list');
         const none = document.getElementById('none');
+        // Sinalização com o server.js, na mesma origem da página.
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
+        // Troca a lista por quem está transmitindo. Cada nome abre /play com o id da live.
         function render(people) {
             list.replaceChildren();
             const online = people.filter((person) => Number.isInteger(person.id) && person.name);
@@ -53,6 +57,7 @@
             }
         }
 
+        // Entra como lobby e redesenha a lista sempre que o servidor avisa quem está online.
         ws.onopen = () => ws.send(JSON.stringify({ type: 'lobby' }));
         ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);

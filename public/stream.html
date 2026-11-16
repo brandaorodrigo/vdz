@@ -11,32 +11,48 @@
 </head>
 
 <body>
-    <main class="stream">
-        <img alt="vdz" src="/vdz.png" width="300">
-        <input autocomplete="off" id="name" maxlength="40" placeholder="Nome da transmissão" type="text">
-        <div class="pair">
-            <select id="res">
-                <option value="1920x1080">1080p</option>
-                <option selected value="1280x720">720p</option>
-                <option value="854x480">480p</option>
-            </select>
-            <select id="fps">
-                <option selected value="60">60fps</option>
-                <option value="30">30fps</option>
-            </select>
-            <select id="rate">
-                <option value="2000000">2mbps</option>
-                <option selected value="4000000">4mbps</option>
-                <option value="8000000">8mbps</option>
-                <option value="16000000">16mbps</option>
-            </select>
-        </div>
-        <select hidden id="win"></select>
-        <span id="note"></span>
-        <div id="preview">
-            <video aria-label="Prévia da transmissão" autoplay muted playsinline></video>
-        </div>
-        <button id="go" type="button"><img alt="Transmitir" src="/stream.png" width="25"></button>
+    <main>
+        <img alt="vdz" id="vdz" src="/vdz.png">
+        <span hidden id="note"></span>
+        <table>
+            <tr>
+                <td colspan="3">
+                    <input autocomplete="off" id="name" maxlength="40" placeholder="Nome da transmissão" type="text">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <select id="res">
+                        <option value="1920x1080">1080p</option>
+                        <option selected value="1280x720">720p</option>
+                        <option value="854x480">480p</option>
+                    </select>
+                </td>
+                <td>
+                    <select id="fps">
+                        <option selected value="60">60 fps</option>
+                        <option value="30">30 fps</option>
+                    </select>
+                </td>
+                <td>
+                    <select id="rate">
+                        <option value="2000000">2 Mb</option>
+                        <option selected value="4000000">4 Mb</option>
+                        <option value="8000000">8 Mb</option>
+                        <option value="16000000">16 Mb</option>
+                    </select>
+                </td>
+            </tr>
+            <tr hidden id="win-row">
+                <td>
+                    <select id="win"></select>
+                </td>
+            </tr>
+        </table>
+
+        <video aria-label="Prévia da transmissão" autoplay hidden id="preview" muted playsinline></video>
+
+        <button id="go" type="button"><img alt="Transmitir" src="/stream.png"></button>
     </main>
     <script>
         // No app Electron, só a versão 2.1.0 segue nesta página. Outra versão vai para /update.
@@ -190,13 +206,13 @@
             // Servidor recusou o nome vazio.
             if (msg.type === 'need-name') {
                 stop();
-                document.getElementById('note').textContent = 'Coloque o nome';
+                showNote('Nome não pode ser vazio');
                 return;
             }
             // Já existem 4 transmissões.
             if (msg.type === 'full') {
                 stop();
-                document.getElementById('note').textContent = 'limite de 4';
+                showNote('Limite de 4');
                 return;
             }
             // Um espectador entrou: cria a oferta para ele.
@@ -397,6 +413,11 @@
             }
         }
 
+        function showNote(message) {
+            document.getElementById('note').hidden = message === '';
+            document.getElementById('note').textContent = message;
+        }
+
         // Encerra a transmissão: para faixas, fecha os espectadores e avisa o servidor.
         function stop() {
             stayAwake(false);
@@ -432,19 +453,19 @@
             }
             const name = nameInput.value.trim();
             if (!name) {
-                document.getElementById('note').textContent = 'Coloque o nome';
+                showNote('Nome não pode ser vazio');
                 return;
             }
+            showNote('');
             starting = true;
-            document.getElementById('note').textContent = '';
             readQuality();
             try {
                 stream = await capture();
             } catch (err) {
                 if (err?.message === 'janela') {
-                    document.getElementById('note').textContent = 'Escolha a janela';
+                    showNote('Escolha a janela');
                 } else if (err?.message === 'audio') {
-                    document.getElementById('note').textContent = 'Sem áudio da janela';
+                    showNote('Sem áudio da janela');
                 }
                 return;
             } finally {

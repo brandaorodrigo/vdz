@@ -41,13 +41,13 @@
         // Troca a lista por quem está transmitindo. Cada nome abre /play com o id da live.
         function render(people) {
             list.replaceChildren();
-            const online = people.filter((person) => Number.isInteger(person.id) && person.name);
+            const online = people.filter((person) => /^[a-z0-9]+$/.test(person.id));
             none.hidden = online.length > 0;
             list.hidden = online.length === 0;
             for (const person of online) {
                 const link = document.createElement('a');
-                link.href = `/play?id=${person.id}`;
-                link.textContent = person.name;
+                link.href = `/play?id=${encodeURIComponent(person.id)}`;
+                link.textContent = person.name || person.id;
                 list.append(link);
             }
         }

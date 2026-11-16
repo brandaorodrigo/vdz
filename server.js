@@ -44,7 +44,7 @@ const broadcasters = new Map();
 const watchers = new Map();
 // sockets da página que só lista quem está online.
 const lobbies = new Set();
-// Próximo id livre, compartilhado por transmissores e espectadores.
+// Próximo id livre de espectador. O id da transmissão é o nome.
 let nextId = 1;
 
 // Envia um objeto JSON se o socket ainda estiver aberto (readyState 1).
@@ -54,11 +54,11 @@ function send(ws, msg) {
     }
 }
 
-// Normaliza o nome exibido: uma linha, sem espaços repetidos, até 40 caracteres.
+// O id da transmissão é o nome: só letras minúsculas e números, até 40.
 function readName(value) {
     return String(value ?? '')
-        .replace(/\s+/g, ' ')
-        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
         .slice(0, 40);
 }
 
@@ -109,11 +109,15 @@ wss.on('connection', (ws) => {
                 send(ws, { type: 'need-name' });
                 return;
             }
-            const id = nextId++;
+            // O nome é o id. Outra pessoa não entra com o mesmo.
+            if (broadcasters.has(name)) {
+                send(ws, { type: 'name-taken' });
+                return;
+            }
             ws.role = 'broadcaster';
-            ws.id = id;
+            ws.id = name;
             ws.name = name;
-            broadcasters.set(id, ws);
+            broadcasters.set(name, ws);
             publishOnline();
             return;
         }
@@ -141,7 +145,7 @@ wss.on('connection', (ws) => {
             if (ws.role) {
                 return;
             }
-            const broadcaster = broadcasters.get(Number(msg.id));
+            const broadcaster = broadcasters.get(readName(msg.id));
             if (!broadcaster) {
                 send(ws, { type: 'gone' });
                 return;
@@ -217,9 +221,7 @@ function listen(port = 3000) {
 
 // Só escuta ao rodar este arquivo direto (node server.js). Em teste, quem importa chama listen().
 if (require.main === module) {
-    listen(3000).then((port) => {
-        console.log(`http://localhost:${port}`);
-    });
+    listen(3000);
 }
 
 module.exports = { close: () => server.close(), listen };

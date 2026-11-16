@@ -16,7 +16,9 @@
         <table>
             <tr>
                 <td colspan="3">
-                    <input autocomplete="off" id="name" maxlength="40" placeholder="Nome da transmissão" type="text">
+                    <input autocapitalize="off" autocomplete="off" id="name" maxlength="40"
+                        placeholder="Nome da transmissão" spellcheck="false" title="Só letras minúsculas e números"
+                        type="text">
                 </td>
             </tr>
             <tr>
@@ -199,6 +201,12 @@
                 showError('Nome de transmissão é obrigatório');
                 return;
             }
+            // Outra pessoa já está no ar com esse nome.
+            if (msg.type === 'name-taken') {
+                stop();
+                showError('Esse nome já está em uso');
+                return;
+            }
             // Um espectador entrou: cria a oferta para ele.
             if (msg.type === 'watcher' && stream) {
                 await connectViewer(msg.id);
@@ -251,6 +259,21 @@
         const go = document.getElementById('go');
         const nameInput = document.getElementById('name');
         const preview = document.getElementById('preview');
+
+        // O nome digitado vira o id. Só fica letra minúscula e número.
+        function liveName(value) {
+            return String(value ?? '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .slice(0, 40);
+        }
+
+        nameInput.addEventListener('input', () => {
+            const clean = liveName(nameInput.value);
+            if (nameInput.value !== clean) {
+                nameInput.value = clean;
+            }
+        });
 
         // A imagem tem id="vdz", então no navegador window.vdz é essa imagem.
         // Só a ponte do Electron tem choose e windows.
@@ -443,7 +466,8 @@
             if (starting) {
                 return;
             }
-            const name = nameInput.value.trim();
+            const name = liveName(nameInput.value);
+            nameInput.value = name;
             if (!name) {
                 showError('Nome de transmissão é obrigatório');
                 return;

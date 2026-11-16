@@ -181,7 +181,7 @@ function open() {
         autoHideMenuBar: true,
         backgroundColor: '#000000',
         fullscreenable: false,
-        height: 730,
+        height: 700,
         icon: path.join(__dirname, '..', 'public', 'android-chrome-512x512.png'),
         maximizable: false,
         resizable: false,
@@ -194,7 +194,7 @@ function open() {
             preload: path.join(__dirname, 'preload.js'),
             sandbox: true,
         },
-        width: 430,
+        width: 400,
     });
     win.once('ready-to-show', () => win.show());
     return win.loadURL(streamUrl);

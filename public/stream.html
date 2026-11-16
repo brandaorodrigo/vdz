@@ -28,7 +28,7 @@
                         <option value="854x480">480p</option>
                     </select>
                 </td>
-                <td>
+                <td class="side">
                     <select id="fps">
                         <option selected value="60">60 fps</option>
                         <option value="30">30 fps</option>
@@ -36,10 +36,10 @@
                 </td>
                 <td>
                     <select id="rate">
-                        <option value="2000000">2 mb</option>
-                        <option selected value="4000000">4 mb</option>
-                        <option value="8000000">8 mb</option>
-                        <option value="16000000">16 mb</option>
+                        <option value="2000000">2 Mb</option>
+                        <option selected value="4000000">4 Mb</option>
+                        <option value="8000000">8 Mb</option>
+                        <option value="16000000">16 Mb</option>
                     </select>
                 </td>
             </tr>
@@ -52,6 +52,9 @@
         <video aria-label="Prévia da transmissão" autoplay id="preview" muted playsinline></video>
         <button id="go" type="button"><img alt="Transmitir" src="/stream.png"></button>
     </main>
+    <div id="error-message">
+        zdsfdshsgdh kjdsklf gfhdskf dshfldsklsdisdgidfigopdf
+    </div>
     <script>
         // No app Electron, só a versão segue nesta página. Outra versão vai para /update.
         if (navigator.userAgent.includes('Electron')) {
@@ -86,6 +89,16 @@
 
         // Sinalização com o server.js, na mesma origem da página.
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+
+        // Mostra uma mensagem de erro na tela.
+        function showError(message) {
+            document.getElementById('error-message').textContent = JSON.stringify(message);
+            document.getElementById('error-message').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('error-message').textContent = '';
+                document.getElementById('error-message').style.display = 'none';
+            }, 5000);
+        }
 
         // Enquanto transmite, chama /ping a cada 5 minutos para o servidor não dormir por inatividade.
         let awake = 0;
@@ -160,7 +173,7 @@
                     try {
                         await setSender(sender);
                     } catch (err) {
-                        console.error(err);
+                        showError(err);
                     }
                 }
             }
@@ -170,7 +183,7 @@
         let qualityChain = Promise.resolve();
         function onQualityChange() {
             readQuality();
-            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => console.error(err));
+            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => showError(err));
         }
 
         // Abre a conexão WebRTC com um espectador e manda a oferta SDP.
@@ -194,7 +207,7 @@
             try {
                 await setSender(sender);
             } catch (err) {
-                console.error(err);
+                showError(err);
             }
             send({ id, sdp: pc.localDescription, type: 'offer' });
         }
@@ -204,13 +217,7 @@
             // Servidor recusou o nome vazio.
             if (msg.type === 'need-name') {
                 stop();
-                showNote('Nome não pode ser vazio');
-                return;
-            }
-            // Já existem 4 transmissões.
-            if (msg.type === 'full') {
-                stop();
-                showNote('Limite de 4');
+                showNote('Nome de transmissão é obrigatório');
                 return;
             }
             // Um espectador entrou: cria a oferta para ele.
@@ -259,7 +266,7 @@
         let chain = Promise.resolve();
         ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
-            chain = chain.then(() => handle(msg)).catch((err) => console.error(err));
+            chain = chain.then(() => handle(msg)).catch((err) => showError(err));
         };
 
         const go = document.getElementById('go');
@@ -464,7 +471,7 @@
             }
             const name = nameInput.value.trim();
             if (!name) {
-                showNote('Nome não pode ser vazio');
+                showNote('Nome de transmissão é obrigatório');
                 return;
             }
             showNote('');
@@ -486,7 +493,7 @@
             const track = stream.getVideoTracks()[0];
             track.onended = () => stop();
             showPreview();
-            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => console.error(err));
+            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => showError(err));
             await qualityChain;
             if (!stream) {
                 return;
@@ -513,7 +520,7 @@
                         winSelect.replaceChildren();
                         const blank = document.createElement('option');
                         blank.value = '';
-                        blank.textContent = 'Selecione a tranmissão...';
+                        blank.textContent = 'Selecione a janela...';
                         winSelect.append(blank);
                         for (const item of list) {
                             const option = document.createElement('option');
@@ -527,7 +534,7 @@
                         }
                         winRow.hidden = false;
                     })
-                    .catch((err) => console.error(err));
+                    .catch((err) => showError(err));
             };
             winSelect.addEventListener('focus', refresh);
             refresh();

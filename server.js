@@ -38,8 +38,6 @@ app.get('/ping', (_req, res) => {
 // um index.html solto substitua a rota "/" definida acima.
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
-// No máximo quatro transmissões ao mesmo tempo.
-const MAX_BROADCASTERS = 4;
 // id -> socket de quem está transmitindo.
 const broadcasters = new Map();
 // id -> socket de quem está assistindo uma transmissão.
@@ -109,10 +107,6 @@ wss.on('connection', (ws) => {
             const name = readName(msg.name);
             if (!name) {
                 send(ws, { type: 'need-name' });
-                return;
-            }
-            if (broadcasters.size >= MAX_BROADCASTERS) {
-                send(ws, { type: 'full' });
                 return;
             }
             const id = nextId++;

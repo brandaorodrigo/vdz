@@ -123,14 +123,14 @@ select {
     display: block;
 }
 
-#go.stop {
+.stop {
     background: #bb4444;
     img {
         filter: brightness(0) invert(1);
     }
 }
 
-#go.stop:hover {
+.stop:hover {
     background: #dd6666;
 }
 
@@ -150,6 +150,7 @@ select {
     text-align: center;
     top: 20px;
     transform: translateX(-50%);
+    z-index: 2;
 }
 
 #list {
@@ -179,4 +180,14 @@ select {
             border-radius: 0 0 12px 12px;
         }
     }
+}
+
+#video {
+    background: #111;
+    display: block;
+    height: 100%;
+    inset: 0;
+    object-fit: contain;
+    position: fixed;
+    width: 100%;
 }

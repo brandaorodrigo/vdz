@@ -11,9 +11,11 @@
 </head>
 
 <body>
-    <div class="idle" id="stage">
-        <video autoplay hidden id="view"></video>
-    </div>
+    <video autoplay hidden id="video">
+        <track default kind="captions" label="legendas" src="data:text/vtt,WEBVTT" srclang="pt">
+    </video>
+    <div id="error"></div>
+    <script src="/common.js"></script>
     <script>
         // Assistir é só no navegador. O app Electron é mandado para a página de atualização.
         if (navigator.userAgent.includes('Electron')) {
@@ -21,23 +23,13 @@
             throw new Error('update');
         }
 
-        const stage = document.getElementById('stage');
-        const video = document.getElementById('view');
+        const video = document.getElementById('video');
         // Qual transmissão assistir, vinda de /play?id=...
         const broadcasterId = Number(new URLSearchParams(location.search).get('id'));
 
-        // Começa mudo para o autoplay ser aceito. O controle do <video> libera o som.
+        // Começa mudo para o autoplay ser aceito. O volume fica para um controle próprio.
         video.muted = true;
 
-        // Servidores STUN usados para descobrir o endereço público na conexão WebRTC.
-        const iceServers = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' },
-            { urls: 'stun:stun.cloudflare.com:3478' },
-        ];
         // Candidatos ICE que chegaram antes da oferta SDP do transmissor.
         const pending = [];
         // A única conexão desta página, com o transmissor escolhido.
@@ -53,8 +45,6 @@
 
         // Solta o vídeo e deixa a tela vazia, sem o player.
         function showIdle() {
-            stage.classList.add('idle');
-            video.controls = false;
             video.hidden = true;
             video.srcObject = null;
         }
@@ -76,14 +66,12 @@
             }
             const conn = new RTCPeerConnection({ iceServers });
             pc = conn;
-            // A faixa recebida entra no <video> e mostra o player.
+            // A faixa recebida entra no <video> e ocupa a tela.
             conn.ontrack = (e) => {
                 if (video.srcObject !== e.streams[0]) {
                     video.srcObject = e.streams[0];
                 }
-                stage.classList.remove('idle');
                 video.hidden = false;
-                video.controls = true;
                 video.play().catch(() => { });
             };
             // Cada candidato ICE encontrado volta ao transmissor pelo servidor.
@@ -143,7 +131,7 @@
         };
         ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
-            chain = chain.then(() => handle(msg)).catch((err) => console.error(err));
+            chain = chain.then(() => handle(msg)).catch((err) => showError(err));
         };
     </script>
 </body>

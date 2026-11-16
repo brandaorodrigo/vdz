@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <title>vdz</title>
+    <link href="/favicon.ico" rel="icon" sizes="any">
+    <link href="/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png">
+    <link href="/favicon-16x16.png" rel="icon" sizes="16x16" type="image/png">
+    <link href="/styles.css" rel="stylesheet">
+</head>
+
+<body>
+    <video autoplay hidden id="video">
+        <track default kind="captions" label="legendas" src="data:text/vtt,WEBVTT" srclang="pt">
+    </video>
+    <div hidden id="controls">
+        <div id="volume">
+            <input aria-label="Volume da transmissão" aria-valuetext="0%" id="volume-bar" max="200" min="0" step="1"
+                type="range" value="0">
+        </div>
+        <button aria-label="Sair da transmissão" class="stop" id="leave" type="button"><img alt="Sair da transmissão"
+                src="/close.svg" style="width: 40%;"></button>
+    </div>
+    <div id="error"></div>
+    <script src="/common.js"></script>
+    <script>
+        // Assistir é só no navegador. O app Electron é mandado para a página de atualização.
+        if (navigator.userAgent.includes('Electron')) {
+            location.replace('/update');
+            throw new Error('update');
+        }
+
+        const video = document.getElementById('video');
+        const controls = document.getElementById('controls');
+        const volumeBar = document.getElementById('volume-bar');
+        // O id da transmissão é o nome: só letras minúsculas e números.
+        const broadcasterId = (new URLSearchParams(location.search).get('id') || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 40);
+
+        // Começa mudo para o autoplay ser aceito. A barra leva o som até 200%.
+        video.muted = true;
+        video.volume = 1;
+
+        // Grafo de áudio criado no primeiro movimento da barra. O <video> só chega a 100%.
+        let audioCtx = null;
+        let gainNode = null;
+        // Some os controles depois de 3s com o cursor parado no mesmo ponto.
+        let volumeTimer = 0;
+        let lastX = null;
+        let lastY = null;
+
+        function hideControls() {
+            clearTimeout(volumeTimer);
+            controls.hidden = true;
+        }
+
+        function revealControls() {
+            controls.hidden = false;
+            clearTimeout(volumeTimer);
+            volumeTimer = setTimeout(hideControls, 3000);
+        }
+
+        // O ganho 1 é o som original. 2 é o dobro, no fim da barra.
+        function applyVolume() {
+            const level = Number(volumeBar.value) / 100;
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = 0;
+                audioCtx.createMediaElementSource(video).connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+            }
+            gainNode.gain.value = level;
+            video.muted = level === 0;
+            volumeBar.setAttribute('aria-valuetext', `${volumeBar.value}%`);
+            if (!video.muted) {
+                video.play().catch(() => { });
+            }
+            audioCtx.resume();
+        }
+
+        volumeBar.addEventListener('input', applyVolume);
+        // O botão X e o fim da transmissão usam a mesma saída.
+        function leave() {
+            location.assign('/list');
+        }
+        document.getElementById('leave').addEventListener('click', leave);
+
+        // Os controles só existem com o cursor sobre o vídeo. Sair ou parar 3s no mesmo ponto esconde.
+        document.addEventListener('mousemove', (e) => {
+            const over = !video.hidden && (e.target === video || e.target === controls || controls.contains(e.target));
+            if (!over) {
+                lastX = null;
+                lastY = null;
+                hideControls();
+                return;
+            }
+            if (e.clientX === lastX && e.clientY === lastY) {
+                return;
+            }
+            lastX = e.clientX;
+            lastY = e.clientY;
+            revealControls();
+        });
+
+        document.documentElement.addEventListener('mouseleave', () => {
+            lastX = null;
+            lastY = null;
+            hideControls();
+        });
+
+        // Candidatos ICE que chegaram antes da oferta SDP do transmissor.
+        const pending = [];
+        // A única conexão desta página, com o transmissor escolhido.
+        let pc = null;
+
+        // Sinalização com o server.js, na mesma origem da página.
+        const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+
+        // Ping a cada 5 minutos para o servidor não dormir por inatividade.
+        const ping = () => fetch('/ping').catch(() => { });
+        ping();
+        setInterval(ping, 5 * 60 * 1000);
+
+        // Abre (ou reabre) a conexão que vai receber o vídeo e o áudio.
+        function connect() {
+            if (pc) {
+                pc.close();
+            }
+            const conn = new RTCPeerConnection({ iceServers });
+            pc = conn;
+            // A faixa recebida entra no <video> e ocupa a tela.
+            conn.ontrack = (e) => {
+                if (video.srcObject !== e.streams[0]) {
+                    video.srcObject = e.streams[0];
+                }
+                video.hidden = false;
+                video.play().catch(() => { });
+            };
+            // Cada candidato ICE encontrado volta ao transmissor pelo servidor.
+            conn.onicecandidate = (e) => {
+                if (e.candidate && ws.readyState === 1) {
+                    ws.send(JSON.stringify({ candidate: e.candidate, id: broadcasterId, type: 'candidate' }));
+                }
+            };
+            return conn;
+        }
+
+        // Trata uma mensagem de sinalização vinda do servidor.
+        async function handle(msg) {
+            // A transmissão não existe ou acabou. Volta para a lista, como o botão de sair.
+            if (msg.type === 'gone' || msg.type === 'stop') {
+                leave();
+                return;
+            }
+            // Oferta SDP do transmissor. Ignora se for de outra live.
+            if (msg.type === 'offer') {
+                if (msg.id !== broadcasterId) {
+                    return;
+                }
+                const early = pending.splice(0);
+                const conn = connect();
+                await conn.setRemoteDescription(msg.sdp);
+                const answer = await conn.createAnswer();
+                await conn.setLocalDescription(answer);
+                ws.send(JSON.stringify({ id: broadcasterId, sdp: conn.localDescription, type: 'answer' }));
+                // Candidatos que chegaram antes da oferta entram agora.
+                for (const c of early) {
+                    await conn.addIceCandidate(c);
+                }
+                return;
+            }
+            // Candidato ICE do transmissor. Sem a oferta ainda, fica na fila.
+            if (msg.type === 'candidate') {
+                if (msg.id !== broadcasterId) {
+                    return;
+                }
+                if (pc?.remoteDescription) {
+                    await pc.addIceCandidate(msg.candidate);
+                } else {
+                    pending.push(msg.candidate);
+                }
+            }
+        }
+
+        // Mensagens do socket são processadas uma depois da outra.
+        let chain = Promise.resolve();
+        // Ao conectar, pede para assistir o id da URL. Sem id, a página fica na tela vazia.
+        ws.onopen = () => {
+            if (!broadcasterId) {
+                return;
+            }
+            ws.send(JSON.stringify({ id: broadcasterId, type: 'watcher' }));
+        };
+        ws.onmessage = (ev) => {
+            const msg = JSON.parse(ev.data);
+            chain = chain.then(() => handle(msg)).catch((err) => showError(err));
+        };
+    </script>
+</body>
+
+</html>

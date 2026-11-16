@@ -39,12 +39,12 @@
         }
     },
     "dependencies": {
-        "express": "^4.21.2",
+        "express": "^5.3.0",
         "ws": "^8.18.3"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.6.7",
-        "electron": "^39.2.0",
+        "electron": "^45.3.3",
         "electron-builder": "^26.0.12"
     },
     "main": "electron/main.js",
@@ -55,5 +55,5 @@
         "dist": "node electron/build-audio.js && electron-builder --win nsis",
         "start": "node server.js"
     },
-    "version": "2.1.0"
+    "version": "2.2.0"
 }

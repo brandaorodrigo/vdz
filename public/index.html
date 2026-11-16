@@ -12,21 +12,162 @@
 </head>
 
 <body>
-    <main>
-        <img alt="vdz" height="100" src="/vdz.png">
-        <button class="icon-btn play" onclick="window.location.href='/play'" type="button">
-            <img alt="Play" src="/play.png" style="margin:0 0 0 6px" width="40">
+    <div data-count="1" id="videos">
+        <iframe src="/list?unique=1" title="Transmissão 1"></iframe>
+        <iframe hidden title="Transmissão 2"></iframe>
+        <iframe hidden title="Transmissão 3"></iframe>
+        <iframe hidden title="Transmissão 4"></iframe>
+    </div>
+    <div hidden id="mosaic">
+        <button aria-label="Menos transmissões" disabled id="less" type="button">
+            <img alt="Menos transmissões" src="/minus.svg" style="width: 30%;">
         </button>
-        <button aria-label="Download" class="icon-btn download" onclick="window.location.href='/vdz_2.1.0.exe'"
-            type="button">
-            <img alt="Download" src="/download.png" width="25">
+        <button aria-label="Mais transmissões" id="more" type="button">
+            <img alt="Mais transmissões" src="/plus.svg" style="width: 30%;">
         </button>
-    </main>
+        <button aria-label="Tela cheia" id="fullscreen" type="button"><img alt="Tela cheia" src="/fullscreen.svg"
+                style="width: 36%;"></button>
+    </div>
     <script>
-        if (navigator.userAgent.includes('Electron')) {
-            location.replace('/update');
-            throw new Error('update');
+        const videos = document.getElementById('videos');
+        const mosaic = document.getElementById('mosaic');
+        const frames = [...videos.querySelectorAll('iframe')];
+        const less = document.getElementById('less');
+        const more = document.getElementById('more');
+        // De 1 a 4 quadros. O quarto lugar do grid 2×2 fica vazio quando há 3.
+        let count = 1;
+        // Some a barra depois de 3s com o cursor parado no mesmo ponto.
+        let mosaicTimer = 0;
+        // mouseleave também dispara ao cruzar de um iframe para a barra. Esse atraso deixa o próximo movimento cancelar.
+        let leaveTimer = 0;
+        let lastX = null;
+        let lastY = null;
+        let lastDoc = null;
+        const watched = new WeakSet();
+
+        // Sem src, ou about:blank, o quadro não tem página e não gasta rede.
+        function idle(frame) {
+            const src = frame.getAttribute('src');
+            return !src || src === 'about:blank';
         }
+
+        // Esconder o iframe deixa o documento vivo. Trocar o src por about:blank fecha socket e WebRTC.
+        function release(frame) {
+            if (idle(frame)) {
+                return;
+            }
+            try {
+                frame.contentWindow?.stop();
+                frame.contentDocument?.querySelectorAll('video, audio').forEach((media) => {
+                    media.srcObject?.getTracks?.().forEach((track) => {
+                        track.stop();
+                    });
+                    media.srcObject = null;
+                });
+            } catch {
+                // Outra origem: a troca de src abaixo ainda descarta o documento.
+            }
+            frame.src = 'about:blank';
+        }
+
+        function showCount(next) {
+            count = next;
+            videos.dataset.count = String(count);
+            frames.forEach((frame, index) => {
+                const visible = index < count;
+                frame.hidden = !visible;
+                if (visible) {
+                    if (idle(frame)) {
+                        frame.src = '/list';
+                    }
+                } else {
+                    release(frame);
+                }
+            });
+            less.disabled = count <= 1;
+            more.disabled = count >= frames.length;
+        }
+
+        function hideMosaic() {
+            clearTimeout(mosaicTimer);
+            clearTimeout(leaveTimer);
+            mosaic.hidden = true;
+        }
+
+        function revealMosaic() {
+            mosaic.hidden = false;
+            clearTimeout(mosaicTimer);
+            clearTimeout(leaveTimer);
+            mosaicTimer = setTimeout(hideMosaic, 3000);
+        }
+
+        // O mouse dentro do iframe não chega nesta página. Cada quadro repete o mesmo aviso.
+        function onMove(e) {
+            const doc = e.target?.ownerDocument || e.view?.document;
+            if (doc === lastDoc && e.clientX === lastX && e.clientY === lastY) {
+                return;
+            }
+            lastDoc = doc;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            revealMosaic();
+        }
+
+        function onLeave() {
+            clearTimeout(leaveTimer);
+            leaveTimer = setTimeout(() => {
+                lastX = null;
+                lastY = null;
+                lastDoc = null;
+                hideMosaic();
+            }, 200);
+        }
+
+        function watch(doc) {
+            if (!doc?.documentElement || watched.has(doc)) {
+                return;
+            }
+            watched.add(doc);
+            doc.addEventListener('mousemove', onMove);
+            doc.documentElement.addEventListener('mouseleave', onLeave);
+        }
+
+        function hook(frame) {
+            const bind = () => {
+                try {
+                    watch(frame.contentDocument);
+                } catch {
+                    return;
+                }
+            };
+            frame.addEventListener('load', bind);
+            bind();
+        }
+
+        less.addEventListener('click', () => {
+            if (count > 1) {
+                showCount(count - 1);
+            }
+            revealMosaic();
+        });
+
+        more.addEventListener('click', () => {
+            if (count < frames.length) {
+                showCount(count + 1);
+            }
+            revealMosaic();
+        });
+
+        // Tela cheia é o navegador inteiro, não um quadro.
+        document.getElementById('fullscreen').addEventListener('click', () => {
+            const action = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+            action.catch(() => { });
+            revealMosaic();
+        });
+
+        showCount(1);
+        watch(document);
+        frames.forEach(hook);
     </script>
 </body>
 

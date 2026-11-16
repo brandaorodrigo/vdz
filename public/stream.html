@@ -11,61 +11,77 @@
 </head>
 
 <body>
-    <main class="stream">
-        <img alt="vdz" height="70" src="/vdz.png">
-
-        <div class="pair">
-            <select id="res">
-                <option value="1920x1080">1080p</option>
-                <option selected value="1280x720">720p</option>
-                <option value="854x480">480p</option>
-            </select>
-            <select id="fps">
-                <option selected value="60">60fps</option>
-                <option value="30">30fps</option>
-            </select>
-            <select id="rate">
-                <option value="2000000">2 Mbps</option>
-                <option selected value="4000000">4 Mbps</option>
-                <option value="8000000">8 Mbps</option>
-                <option value="16000000">16 Mbps</option>
-            </select>
-        </div>
-        <select hidden id="win"></select>
-        <span id="note"></span>
-        <div id="preview">
-            <video aria-label="Prévia da transmissão" autoplay muted playsinline></video>
-        </div>
-        <button id="go" type="button"><img alt="Transmitir" src="/stream.png" width="25"></button>
+    <main>
+        <img alt="vdz" id="vdz" src="/vdz.png">
+        <table>
+            <tr>
+                <td colspan="3">
+                    <input autocapitalize="off" autocomplete="off" id="name" maxlength="40"
+                        placeholder="Nome da transmissão" spellcheck="false" title="Só letras minúsculas e números"
+                        type="text">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <select id="res">
+                        <option value="1920x1080">1080p</option>
+                        <option selected value="1280x720">720p</option>
+                        <option value="854x480">480p</option>
+                    </select>
+                </td>
+                <td class="side">
+                    <select id="fps">
+                        <option selected value="60">60 fps</option>
+                        <option value="30">30 fps</option>
+                    </select>
+                </td>
+                <td>
+                    <select id="rate">
+                        <option value="2000000">2 Mb</option>
+                        <option selected value="4000000">4 Mb</option>
+                        <option value="8000000">8 Mb</option>
+                        <option value="16000000">16 Mb</option>
+                    </select>
+                </td>
+            </tr>
+            <tr hidden id="win-row">
+                <td colspan="3">
+                    <select id="win"></select>
+                </td>
+            </tr>
+        </table>
+        <video aria-label="Prévia da transmissão" autoplay id="preview" muted playsinline></video>
+        <button id="go" type="button"><img alt="Transmitir" src="/stream.svg" style="width: 45%;"></button>
     </main>
+    <div id="error"></div>
+    <script src="/common.js"></script>
     <script>
+        // No app Electron, só a versão segue nesta página. Outra versão vai para /update.
         if (navigator.userAgent.includes('Electron')) {
             queryString = new URLSearchParams(window.location.search);
             const version = queryString.get('version');
-            if (version !== '2.1.0') {
+            if (version !== '2.2.0') {
                 location.replace('/update');
                 throw new Error('update');
             }
         }
 
-        const iceServers = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' },
-            { urls: 'stun:stun.cloudflare.com:3478' },
-        ];
+        // Uma RTCPeerConnection por espectador.
         const pcs = new Map();
+        // Candidatos ICE que chegaram antes da resposta SDP daquele espectador.
         const ice = new Map();
+        // Mídia capturada (vídeo da tela e, se houver, áudio).
         let stream = null;
+        // Qualidade pedida nos selects. Lida de novo antes de capturar e a cada mudança.
         let width = 1280;
         let height = 720;
         let fps = 30;
         let bitrate = 4_000_000;
 
+        // Sinalização com o server.js, na mesma origem da página.
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 
+        // Enquanto transmite, chama /ping a cada 5 minutos para o servidor não dormir por inatividade.
         let awake = 0;
         function stayAwake(on) {
             clearInterval(awake);
@@ -78,6 +94,7 @@
             awake = setInterval(ping, 5 * 60 * 1000);
         }
 
+        // Envia JSON ao servidor. Se o socket ainda não abriu, espera o evento open.
         function send(msg) {
             const data = JSON.stringify(msg);
             if (ws.readyState === 1) {
@@ -87,6 +104,7 @@
             }
         }
 
+        // Aplica bitrate, fps e redução de resolução no encoder daquele espectador.
         async function setSender(sender) {
             const params = sender.getParameters();
             if (!params.encodings?.length) {
@@ -101,6 +119,7 @@
             await sender.setParameters(params);
         }
 
+        // Copia resolução, fps e bitrate dos selects para as variáveis.
         function readQuality() {
             const size = document.getElementById('res').value.split('x');
             width = Number(size[0]);
@@ -109,6 +128,7 @@
             bitrate = Number(document.getElementById('rate').value);
         }
 
+        // Pede a nova qualidade à faixa de vídeo e repete isso em cada conexão já aberta.
         async function pushQuality() {
             if (!stream) {
                 return;
@@ -134,18 +154,20 @@
                     try {
                         await setSender(sender);
                     } catch (err) {
-                        console.error(err);
+                        showError(err);
                     }
                 }
             }
         }
 
+        // Mudanças de qualidade entram numa fila para não se atropelarem.
         let qualityChain = Promise.resolve();
         function onQualityChange() {
             readQuality();
-            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => console.error(err));
+            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => showError(err));
         }
 
+        // Abre a conexão WebRTC com um espectador e manda a oferta SDP.
         async function connectViewer(id) {
             const pc = new RTCPeerConnection({ iceServers });
             pcs.set(id, pc);
@@ -155,6 +177,7 @@
             if (audio) {
                 pc.addTrack(audio, stream);
             }
+            // Cada candidato ICE encontrado é encaminhado ao espectador pelo servidor.
             pc.onicecandidate = (e) => {
                 if (e.candidate) {
                     send({ candidate: e.candidate, id, type: 'candidate' });
@@ -165,21 +188,31 @@
             try {
                 await setSender(sender);
             } catch (err) {
-                console.error(err);
+                showError(err);
             }
             send({ id, sdp: pc.localDescription, type: 'offer' });
         }
 
+        // Trata uma mensagem de sinalização vinda do servidor.
         async function handle(msg) {
-            if (msg.type === 'full') {
+            // Servidor recusou o nome vazio.
+            if (msg.type === 'need-name') {
                 stop();
-                document.getElementById('note').textContent = 'limite de 4';
+                showError('Nome de transmissão é obrigatório');
                 return;
             }
+            // Outra pessoa já está no ar com esse nome.
+            if (msg.type === 'name-taken') {
+                stop();
+                showError('Esse nome já está em uso');
+                return;
+            }
+            // Um espectador entrou: cria a oferta para ele.
             if (msg.type === 'watcher' && stream) {
                 await connectViewer(msg.id);
                 return;
             }
+            // Resposta SDP do espectador. Candidatos guardados antes dela entram agora.
             if (msg.type === 'answer') {
                 const pc = pcs.get(msg.id);
                 if (!pc) {
@@ -192,6 +225,7 @@
                 ice.set(msg.id, []);
                 return;
             }
+            // Candidato ICE do espectador. Sem a resposta SDP ainda, fica na fila.
             if (msg.type === 'candidate') {
                 const pc = pcs.get(msg.id);
                 if (!pc?.remoteDescription) {
@@ -204,6 +238,7 @@
                 await pc.addIceCandidate(msg.candidate);
                 return;
             }
+            // Espectador saiu: fecha só a conexão dele.
             if (msg.type === 'watcher-gone') {
                 const pc = pcs.get(msg.id);
                 if (pc) {
@@ -214,30 +249,63 @@
             }
         }
 
+        // Mensagens do socket são processadas uma depois da outra.
         let chain = Promise.resolve();
         ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
-            chain = chain.then(() => handle(msg)).catch((err) => console.error(err));
+            chain = chain.then(() => handle(msg)).catch((err) => showError(err));
         };
 
         const go = document.getElementById('go');
+        const nameInput = document.getElementById('name');
         const preview = document.getElementById('preview');
-        const previewVideo = preview.querySelector('video');
+
+        // O nome digitado vira o id. Só fica letra minúscula e número.
+        function liveName(value) {
+            return String(value ?? '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .slice(0, 40);
+        }
+
+        nameInput.addEventListener('input', () => {
+            const clean = liveName(nameInput.value);
+            if (nameInput.value !== clean) {
+                nameInput.value = clean;
+            }
+        });
+
+        // A imagem tem id="vdz", então no navegador window.vdz é essa imagem.
+        // Só a ponte do Electron tem choose e windows.
+        function desktop() {
+            const api = window.vdz;
+            if (!api || typeof api.choose !== 'function' || typeof api.windows !== 'function') {
+                return null;
+            }
+            return api;
+        }
+
+        // Impede um segundo clique enquanto a captura ainda não terminou.
         let starting = false;
+        // Função que desliga o áudio extra do app Electron, quando ele existe.
         let audioPump = null;
 
+        // Mostra a prévia local, sem som (o <video> está muted).
         function showPreview() {
-            previewVideo.srcObject = stream;
+            preview.srcObject = stream;
+            preview.hidden = false;
             preview.classList.add('on');
-            previewVideo.play().catch(() => { });
+            preview.play().catch(() => { });
         }
 
         function hidePreview() {
             preview.classList.remove('on');
-            previewVideo.pause();
-            previewVideo.srcObject = null;
+            preview.hidden = true;
+            preview.pause();
+            preview.srcObject = null;
         }
 
+        // Para a captura de áudio da janela no Electron e esquece o callback.
         function releaseAudio() {
             if (!audioPump) {
                 return;
@@ -247,6 +315,7 @@
             release();
         }
 
+        // O app manda amostras num formato ou noutro; o AudioContext precisa de Float32Array.
         function asFloat(samples) {
             if (samples instanceof Float32Array) {
                 return samples;
@@ -254,11 +323,13 @@
             return Float32Array.from(samples);
         }
 
+        // No Electron, o áudio da janela chega em pedaços PCM e vira uma faixa de MediaStream.
         async function startWindowAudio() {
             const chunks = [];
             let offset = 0;
             let channels = 2;
-            window.vdz.onAudio((payload) => {
+            // Guarda os pedaços e descarta o que passar de cerca de 1 segundo, para não atrasar.
+            desktop().onAudio((payload) => {
                 channels = payload.channels || channels;
                 chunks.push(asFloat(payload.samples));
                 let total = 0;
@@ -271,17 +342,19 @@
                     offset = 0;
                 }
             });
-            const meta = await window.vdz.startAudio();
+            const meta = await desktop().startAudio();
             if (!meta) {
-                window.vdz.offAudio();
+                desktop().offAudio();
                 throw new Error('audio');
             }
             const ctx = new AudioContext({ sampleRate: meta.sampleRate || 48000 });
             await ctx.resume();
+            // dest é o stream enviado aos espectadores. mute liga o processador sem tocar o áudio aqui.
             const dest = ctx.createMediaStreamDestination();
             const node = ctx.createScriptProcessor(4096, 0, 2);
             const mute = ctx.createGain();
             mute.gain.value = 0;
+            // Copia o buffer para estéreo. Mono é duplicado; se faltar amostra, sai silêncio.
             node.onaudioprocess = (ev) => {
                 const left = ev.outputBuffer.getChannelData(0);
                 const right = ev.outputBuffer.getChannelData(1);
@@ -319,8 +392,8 @@
             mute.connect(ctx.destination);
             return {
                 stop() {
-                    window.vdz.offAudio();
-                    window.vdz.stopAudio();
+                    desktop().offAudio();
+                    desktop().stopAudio();
                     node.disconnect();
                     mute.disconnect();
                     ctx.close();
@@ -329,8 +402,10 @@
             };
         }
 
+        // Pede a tela ao navegador. No Electron, a janela vem da lista e o áudio vem à parte.
         async function capture() {
-            if (!window.vdz) {
+            const api = desktop();
+            if (!api) {
                 return navigator.mediaDevices.getDisplayMedia({
                     audio: true,
                     video: { frameRate: { ideal: fps, max: fps }, height: { ideal: height }, width: { ideal: width } },
@@ -340,7 +415,7 @@
             if (!id) {
                 throw new Error('janela');
             }
-            const picked = await window.vdz.choose(id);
+            const picked = await api.choose(id);
             if (!picked) {
                 throw new Error('janela');
             }
@@ -358,10 +433,12 @@
             }
         }
 
+        // Encerra a transmissão: para faixas, fecha os espectadores e avisa o servidor.
         function stop() {
             stayAwake(false);
             hidePreview();
             releaseAudio();
+            nameInput.disabled = false;
             if (!stream) {
                 return;
             }
@@ -380,6 +457,7 @@
             send({ type: 'stop' });
         }
 
+        // O mesmo botão começa e para. Começar captura a tela e se registra como broadcaster.
         go.onclick = async () => {
             if (stream) {
                 stop();
@@ -388,31 +466,38 @@
             if (starting) {
                 return;
             }
+            const name = liveName(nameInput.value);
+            nameInput.value = name;
+            if (!name) {
+                showError('Nome de transmissão é obrigatório');
+                return;
+            }
             starting = true;
-            document.getElementById('note').textContent = '';
             readQuality();
             try {
                 stream = await capture();
             } catch (err) {
                 if (err?.message === 'janela') {
-                    document.getElementById('note').textContent = 'Escolha a janela';
+                    showError('Escolha a janela');
                 } else if (err?.message === 'audio') {
-                    document.getElementById('note').textContent = 'Sem áudio da janela';
+                    showError('Sem áudio da janela');
                 }
                 return;
             } finally {
                 starting = false;
             }
+            // Parar o compartilhamento no navegador também encerra a transmissão.
             const track = stream.getVideoTracks()[0];
             track.onended = () => stop();
             showPreview();
-            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => console.error(err));
+            qualityChain = qualityChain.then(() => pushQuality()).catch((err) => showError(err));
             await qualityChain;
             if (!stream) {
                 return;
             }
             go.classList.add('stop');
-            send({ type: 'broadcaster' });
+            nameInput.disabled = true;
+            send({ name, type: 'broadcaster' });
             stayAwake(true);
         };
 
@@ -420,17 +505,19 @@
         document.getElementById('fps').addEventListener('change', onQualityChange);
         document.getElementById('rate').addEventListener('change', onQualityChange);
 
+        // No Electron, a lista de janelas aparece e é atualizada cada vez que o select ganha foco.
+        const winRow = document.getElementById('win-row');
         const winSelect = document.getElementById('win');
-        if (window.vdz) {
+        if (desktop()) {
             const refresh = () => {
                 const current = winSelect.value;
-                window.vdz
+                desktop()
                     .windows()
                     .then((list) => {
                         winSelect.replaceChildren();
                         const blank = document.createElement('option');
                         blank.value = '';
-                        blank.textContent = 'Selecione a tranmissão...';
+                        blank.textContent = 'Selecione a janela...';
                         winSelect.append(blank);
                         for (const item of list) {
                             const option = document.createElement('option');
@@ -438,12 +525,13 @@
                             option.textContent = item.name;
                             winSelect.append(option);
                         }
+                        // Mantém a janela já escolhida se ela ainda existir na lista nova.
                         if ([...winSelect.options].some((option) => option.value === current)) {
                             winSelect.value = current;
                         }
-                        winSelect.hidden = false;
+                        winRow.hidden = false;
                     })
-                    .catch((err) => console.error(err));
+                    .catch((err) => showError(err));
             };
             winSelect.addEventListener('focus', refresh);
             refresh();

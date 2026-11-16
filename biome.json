@@ -73,7 +73,7 @@
             },
             "suspicious": {
                 "noConsole": {
-                    "level": "off",
+                    "level": "warn",
                     "options": {}
                 },
                 "noDoubleEquals": {

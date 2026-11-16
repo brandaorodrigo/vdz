@@ -16,9 +16,10 @@
     </video>
     <div hidden id="controls">
         <div id="volume">
-            <input aria-label="Volume da transmissão" aria-valuetext="0%" id="volume-bar" max="200" min="0" step="1" type="range" value="0">
+            <input aria-label="Volume da transmissão" aria-valuetext="0%" id="volume-bar" max="200" min="0" step="1"
+                type="range" value="0">
         </div>
-        <button aria-label="Sair da transmissão" class="stop" id="leave" type="button">×</button>
+        <button aria-label="Sair da transmissão" class="stop" id="leave" type="button"><span>×</span></button>
     </div>
     <div id="error"></div>
     <script src="/common.js"></script>
@@ -78,9 +79,11 @@
         }
 
         volumeBar.addEventListener('input', applyVolume);
-        document.getElementById('leave').addEventListener('click', () => {
+        // O botão X e o fim da transmissão usam a mesma saída.
+        function leave() {
             location.assign('/');
-        });
+        }
+        document.getElementById('leave').addEventListener('click', leave);
 
         // Os controles só existem com o cursor sobre o vídeo. Sair ou parar 3s no mesmo ponto esconde.
         document.addEventListener('mousemove', (e) => {
@@ -118,23 +121,6 @@
         ping();
         setInterval(ping, 5 * 60 * 1000);
 
-        // Solta o vídeo e deixa a tela vazia, sem o player.
-        function showIdle() {
-            video.hidden = true;
-            video.srcObject = null;
-            hideControls();
-        }
-
-        // Fecha a conexão e esvazia a fila de candidatos.
-        function drop() {
-            pending.length = 0;
-            if (pc) {
-                pc.close();
-                pc = null;
-            }
-            showIdle();
-        }
-
         // Abre (ou reabre) a conexão que vai receber o vídeo e o áudio.
         function connect() {
             if (pc) {
@@ -161,9 +147,9 @@
 
         // Trata uma mensagem de sinalização vinda do servidor.
         async function handle(msg) {
-            // A transmissão não existe ou acabou de encerrar.
+            // A transmissão não existe ou acabou. Volta para a lista, como o botão de sair.
             if (msg.type === 'gone' || msg.type === 'stop') {
-                drop();
+                leave();
                 return;
             }
             // Oferta SDP do transmissor. Ignora se for de outra live.

@@ -15,6 +15,20 @@
         <img alt="vdz" id="vdz" src="/vdz.png">
         <table>
             <tr>
+                <td colspan="3">
+                    <input autocapitalize="off" autocomplete="off" id="name" maxlength="40"
+                        placeholder="Nome da transmissão" spellcheck="false" title="Só letras minúsculas e números"
+                        type="text">
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3">
+                    <select id="win">
+                        <option value="">Selecione a janela</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
                 <td>
                     <select id="res">
                         <option value="1920x1080">1080p</option>
@@ -34,20 +48,6 @@
                         <option selected value="4000000">4 Mb</option>
                         <option value="8000000">8 Mb</option>
                         <option value="16000000">16 Mb</option>
-                    </select>
-                </td>
-            </tr>
-            <tr>
-                <td colspan="3">
-                    <input autocapitalize="off" autocomplete="off" id="name" maxlength="40"
-                        placeholder="Nome da transmissão" spellcheck="false" title="Só letras minúsculas e números"
-                        type="text">
-                </td>
-            </tr>
-            <tr>
-                <td colspan="3">
-                    <select id="win">
-                        <option value="">Selecione a janela</option>
                     </select>
                 </td>
             </tr>
@@ -260,7 +260,14 @@
 
         const go = document.getElementById('go');
         const nameInput = document.getElementById('name');
+        const winSelect = document.getElementById('win');
         const preview = document.getElementById('preview');
+
+        // Nome e janela ficam travados no ar. Resolução, fps e bitrate continuam mudando.
+        function lockSource(on) {
+            nameInput.disabled = on;
+            winSelect.disabled = on;
+        }
 
         // O nome digitado vira o id. Só fica letra minúscula e número.
         function liveName(value) {
@@ -440,7 +447,7 @@
             stayAwake(false);
             hidePreview();
             releaseAudio();
-            nameInput.disabled = false;
+            lockSource(false);
             if (!stream) {
                 return;
             }
@@ -481,10 +488,12 @@
                 return;
             }
             starting = true;
+            lockSource(true);
             readQuality();
             try {
                 stream = await capture();
             } catch (err) {
+                lockSource(false);
                 if (err?.message === 'janela') {
                     showError('Escolha a janela');
                 } else if (err?.message === 'audio') {
@@ -504,7 +513,6 @@
                 return;
             }
             go.classList.add('stop');
-            nameInput.disabled = true;
             send({ name, type: 'broadcaster' });
             stayAwake(true);
         };
@@ -514,13 +522,15 @@
         document.getElementById('rate').addEventListener('change', onQualityChange);
 
         // No Electron, a lista de janelas aparece e é atualizada cada vez que o select ganha foco.
-        const winSelect = document.getElementById('win');
         if (desktop()) {
             const refresh = () => {
                 const current = winSelect.value;
                 desktop()
                     .windows()
                     .then((list) => {
+                        if (winSelect.disabled) {
+                            return;
+                        }
                         winSelect.replaceChildren();
                         const blank = document.createElement('option');
                         blank.value = '';

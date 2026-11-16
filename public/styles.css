@@ -109,6 +109,16 @@ select {
         border-color: #666;
         outline: none;
     }
+
+    &:disabled {
+        color: #666;
+        cursor: default;
+    }
+
+    &:disabled:hover,
+    &:disabled:focus {
+        border-color: #333333;
+    }
 }
 
 select {

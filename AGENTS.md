@@ -83,16 +83,16 @@ Fluxo de uma live:
 3. `/video?id=` envia `watcher`. O servidor manda `watcher` ao transmissor com um id numérico.
 4. O transmissor cria um `RTCPeerConnection` só para esse id, adiciona a faixa de vídeo e, se houver, a de áudio, gera a offer e manda `offer`.
 5. O espectador responde com `answer`. Candidatos ICE que chegaram cedo ficam numa fila até existir `remoteDescription`.
-6. `ontrack` no espectador joga o `MediaStream` no `<video>`. O vídeo começa mudo para o autoplay passar. A barra de volume (0–200%) cria um `AudioContext` com `GainNode`: 100% é o som original, 200% é o dobro. O botão de sair e os tipos `gone` / `stop` voltam para `/list`.
+6. `ontrack` no espectador joga o `MediaStream` no `<video>`. O vídeo começa mudo para o autoplay passar. A barra de volume (0–200%) cria um `AudioContext` com `GainNode`: 100% é o som original, 200% é o dobro. O botão de sair, os tipos `gone` / `stop`, o fim da faixa de vídeo e a queda da conexão voltam para `/list`. O `<video>` é esvaziado antes da troca, para o último quadro não ficar por cima da lista. `gone` e `stop` são tratados na hora, fora da fila.
 
-No transmissor, as mensagens WebSocket são aplicadas em série (`chain`). O mesmo vale para o espectador.
+No transmissor, as mensagens WebSocket são aplicadas em série (`chain`). No espectador também, menos `gone` e `stop`.
 
 Qualidade (selects em `/stream`, padrão 720p, 60 fps, 4 Mb):
 
 - `readQuality` lê resolução, fps e bitrate.
 - `applyConstraints` pede isso à faixa de vídeo.
 - `setParameters` em cada sender de vídeo fixa `minBitrate` e `maxBitrate` no valor escolhido (2, 4, 8 ou 16 Mb), `maxFramerate` e `scaleResolutionDownBy` se a captura vier maior que o pedido.
-- Mudanças entram numa fila (`qualityChain`) para não se atropelarem. O mesmo botão começa e para. Parar o compartilhamento no navegador também chama `stop`.
+- Mudanças entram numa fila (`qualityChain`) para não se atropelarem. O mesmo botão começa e para. Parar manda `stop` antes de fechar os peer connections. O reload da página espera esse envio sair; no mesmo instante o socket fecha e quem assiste não recebe o `stop`. Parar o compartilhamento no navegador também chama `stop`.
 
 ## Captura no Electron
 

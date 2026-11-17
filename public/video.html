@@ -81,7 +81,25 @@
 
         volumeBar.addEventListener('input', applyVolume);
         // O botão X e o fim da transmissão usam a mesma saída.
+        // Esvazia o <video> antes: senão o último quadro fica por cima da lista.
         function leave() {
+            if (left) {
+                return;
+            }
+            left = true;
+            clearTimeout(dropTimer);
+            clearTimeout(muteTimer);
+            const current = pc;
+            pc = null;
+            if (current) {
+                current.onconnectionstatechange = null;
+                current.ontrack = null;
+                current.onicecandidate = null;
+                current.close();
+            }
+            video.pause();
+            video.srcObject = null;
+            video.remove();
             location.assign('/list');
         }
         document.getElementById('leave').addEventListener('click', leave);
@@ -113,6 +131,13 @@
         const pending = [];
         // A única conexão desta página, com o transmissor escolhido.
         let pc = null;
+        // Sobe a cada connect. Evento da conexão anterior não pode tirar o espectador.
+        let viewGen = 0;
+        // Espera curta antes de sair se o peer só desconectou (pode voltar).
+        let dropTimer = 0;
+        // A faixa muda ao parar. Sem isso o <video> fica no último quadro.
+        let muteTimer = 0;
+        let left = false;
 
         // Sinalização com o server.js, na mesma origem da página.
         const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
@@ -124,18 +149,75 @@
 
         // Abre (ou reabre) a conexão que vai receber o vídeo e o áudio.
         function connect() {
-            if (pc) {
-                pc.close();
+            const gen = ++viewGen;
+            const prev = pc;
+            pc = null;
+            if (prev) {
+                prev.onconnectionstatechange = null;
+                prev.ontrack = null;
+                prev.onicecandidate = null;
+                prev.close();
             }
+            clearTimeout(dropTimer);
+            clearTimeout(muteTimer);
             const conn = new RTCPeerConnection({ iceServers });
             pc = conn;
             // A faixa recebida entra no <video> e ocupa a tela.
             conn.ontrack = (e) => {
+                if (viewGen !== gen) {
+                    return;
+                }
                 if (video.srcObject !== e.streams[0]) {
                     video.srcObject = e.streams[0];
                 }
                 video.hidden = false;
                 video.play().catch(() => { });
+                // Parar a transmissão muda a faixa e segura o último quadro. "ended" nem sempre vem.
+                if (e.track.kind === 'video') {
+                    let live = !e.track.muted;
+                    e.track.addEventListener('unmute', () => {
+                        live = true;
+                        clearTimeout(muteTimer);
+                    });
+                    e.track.addEventListener('mute', () => {
+                        if (!live || viewGen !== gen) {
+                            return;
+                        }
+                        clearTimeout(muteTimer);
+                        muteTimer = setTimeout(() => {
+                            if (viewGen === gen && e.track.muted) {
+                                leave();
+                            }
+                        }, 600);
+                    });
+                    e.track.addEventListener('ended', () => {
+                        if (viewGen === gen) {
+                            leave();
+                        }
+                    });
+                }
+            };
+            // Peer fechado do outro lado não manda "ended" na hora. "failed" sai já; "disconnected" espera um pouco.
+            conn.onconnectionstatechange = () => {
+                if (viewGen !== gen || conn !== pc) {
+                    return;
+                }
+                if (conn.connectionState === 'failed') {
+                    leave();
+                    return;
+                }
+                if (conn.connectionState === 'disconnected') {
+                    clearTimeout(dropTimer);
+                    dropTimer = setTimeout(() => {
+                        if (viewGen === gen && conn.connectionState !== 'connected') {
+                            leave();
+                        }
+                    }, 1500);
+                    return;
+                }
+                if (conn.connectionState === 'connected') {
+                    clearTimeout(dropTimer);
+                }
             };
             // Cada candidato ICE encontrado volta ao transmissor pelo servidor.
             conn.onicecandidate = (e) => {
@@ -148,9 +230,7 @@
 
         // Trata uma mensagem de sinalização vinda do servidor.
         async function handle(msg) {
-            // A transmissão não existe ou acabou. Volta para a lista, como o botão de sair.
-            if (msg.type === 'gone' || msg.type === 'stop') {
-                leave();
+            if (left) {
                 return;
             }
             // Oferta SDP do transmissor. Ignora se for de outra live.
@@ -161,11 +241,23 @@
                 const early = pending.splice(0);
                 const conn = connect();
                 await conn.setRemoteDescription(msg.sdp);
+                if (left) {
+                    return;
+                }
                 const answer = await conn.createAnswer();
+                if (left) {
+                    return;
+                }
                 await conn.setLocalDescription(answer);
+                if (left || ws.readyState !== 1) {
+                    return;
+                }
                 ws.send(JSON.stringify({ id: broadcasterId, sdp: conn.localDescription, type: 'answer' }));
                 // Candidatos que chegaram antes da oferta entram agora.
                 for (const c of early) {
+                    if (left) {
+                        return;
+                    }
                     await conn.addIceCandidate(c);
                 }
                 return;
@@ -194,7 +286,18 @@
         };
         ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
-            chain = chain.then(() => handle(msg)).catch((err) => showError(err));
+            // Fora da fila: um ICE ou um SDP pendente segurava o stop e o vídeo ficava no último quadro.
+            if (msg.type === 'gone' || msg.type === 'stop') {
+                leave();
+                return;
+            }
+            chain = chain
+                .then(() => handle(msg))
+                .catch((err) => {
+                    if (!left) {
+                        showError(err);
+                    }
+                });
         };
     </script>
 </body>

@@ -442,7 +442,7 @@
             }
         }
 
-        // Encerra a transmissão: para faixas, fecha os espectadores e avisa o servidor.
+        // Encerra a transmissão: avisa o servidor, para faixas e fecha os espectadores.
         function stop() {
             stayAwake(false);
             hidePreview();
@@ -451,6 +451,8 @@
             if (!stream) {
                 return;
             }
+            // Antes de fechar o WebRTC. Se o stop sair depois, o espectador segura o último quadro.
+            send({ type: 'stop' });
             const current = stream;
             stream = null;
             for (const track of current.getTracks()) {
@@ -463,13 +465,24 @@
             pcs.clear();
             ice.clear();
             go.classList.remove('stop');
-            send({ type: 'stop' });
         }
 
         // Encerra a transmissão e recarrega o HTML da página, para a captura não ficar no documento.
+        // O reload no mesmo instante do send cancela o socket e o stop não chega em quem assiste.
         function end() {
             stop();
-            location.reload();
+            starting = true;
+            const start = Date.now();
+            const reload = () => location.reload();
+            const wait = () => {
+                const flushed = ws.readyState !== 1 || ws.bufferedAmount === 0;
+                if ((flushed && Date.now() - start >= 50) || Date.now() - start > 300) {
+                    reload();
+                    return;
+                }
+                setTimeout(wait, 20);
+            };
+            setTimeout(wait, 20);
         }
 
         // O mesmo botão começa e para. Começar captura a tela e se registra como broadcaster.

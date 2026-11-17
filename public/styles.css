@@ -321,7 +321,6 @@ body:has(#videos) {
 #videos {
     display: grid;
     inset: 0;
-    background-color: #333333;
     overflow: hidden;
     position: fixed;
 }
@@ -345,7 +344,7 @@ body:has(#videos) {
 #videos[data-count="2"],
 #videos[data-count="3"],
 #videos[data-count="4"] {
-    gap: 3px;
+    gap: 4px;
 }
 
 #videos iframe {

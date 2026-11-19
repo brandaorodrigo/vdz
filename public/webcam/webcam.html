@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8">
+        <meta content="width=device-width, initial-scale=1" name="viewport">
+        <title>Webcam</title>
+        <style>
+        html,
+        body {
+            margin: 0;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+
+        video {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+            background: #000;
+        }
+
+        p {
+            margin: 0;
+            padding: 1rem;
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font: 16px sans-serif;
+            text-align: center;
+        }
+        </style>
+    </head>
+
+    <body>
+        <!-- biome-ignore lint/a11y/useMediaCaption: câmera ao vivo, sem faixa de legenda -->
+        <video aria-label="Câmera" autoplay playsinline></video>
+        <script>
+        // Extra solto: só abre a câmera e ocupa a janela inteira.
+        // Não usa o WebSocket nem o visual do vdz. Quem transmite
+        // captura esta janela. Duplo clique pede tela cheia.
+        // deviceId escolhe a câmera; deviceLabel casa um trecho do nome.
+        // audioDeviceId liga o microfone. Sem ele, a página fica muda.
+        // Os ids disponíveis saem no console depois que o navegador autoriza.
+
+        const params = new URLSearchParams(location.search);
+        const videoDeviceId = params.get('deviceId');
+        const videoDeviceLabel = params.get('deviceLabel');
+        const audioDeviceId = params.get('audioDeviceId');
+        const video = document.querySelector('video');
+
+        video.addEventListener('dblclick', () => {
+            const root = document.documentElement;
+            if (root.requestFullscreen) {
+                root.requestFullscreen();
+            }
+        });
+
+        function describe(devices) {
+            const lines = devices
+                .filter((device) => device.kind === 'videoinput' || device.kind === 'audioinput')
+                .map((device) => `[${device.kind}] ${device.label}: ${device.deviceId}`);
+            // biome-ignore lint/suspicious/noConsole: a lista é o jeito de copiar o deviceId para a URL
+            console.log(`Câmeras e microfones. Para fixar, use ?deviceId= e ?audioDeviceId= na URL.\n\n${lines.join('\n\n')}`);
+        }
+
+        async function openCamera() {
+            let chosenId = videoDeviceId;
+            if (!chosenId && videoDeviceLabel) {
+                // Sem uma captura antes, o navegador esconde o nome do aparelho.
+                const probe = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+                for (const track of probe.getTracks()) {
+                    track.stop();
+                }
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                describe(devices);
+                const match = devices.find((device) => device.kind === 'videoinput' && device.label.includes(videoDeviceLabel));
+                chosenId = match?.deviceId;
+            }
+
+            const constraints = { audio: false, video: { frameRate: { ideal: 50 }, height: { ideal: 1080 }, width: { ideal: 1920 } } };
+            if (chosenId) {
+                constraints.video.deviceId = { exact: chosenId };
+            }
+            if (audioDeviceId) {
+                constraints.audio = { autoGainControl: false, deviceId: { exact: audioDeviceId }, echoCancellation: false, noiseSuppression: false };
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            video.muted = !audioDeviceId;
+            video.srcObject = stream;
+            if (!videoDeviceLabel) {
+                describe(await navigator.mediaDevices.enumerateDevices());
+            }
+        }
+
+        openCamera().catch(() => {
+            const note = document.createElement('p');
+            note.textContent = 'Não foi possível abrir a câmera.';
+            document.body.appendChild(note);
+        });
+        </script>
+    </body>
+</html>

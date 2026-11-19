@@ -33,6 +33,12 @@ app.get('/update', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'update.html'));
 });
 
+// Extra fora da live: só a câmera ocupando a janela, para quem quiser
+// capturar essa página e transmitir a webcam. Não entra na sinalização.
+app.get('/webcam', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'webcam', 'webcam.html'));
+});
+
 // Resposta vazia usada só para medir se o servidor está no ar.
 app.get('/ping', (_req, res) => {
     res.status(204).end();

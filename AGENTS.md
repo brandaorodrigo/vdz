@@ -36,6 +36,7 @@ O Express entrega cada HTML numa rota fixa. `express.static` serve o resto de `p
 - `GET /stream` — tela de transmissão. No Electron, continua só se `?version=` for exatamente `2.2.0`; qualquer outra versão vai para `/update`.
 - `GET /update` — pede para baixar o mesmo instalador no GitHub Releases.
 - `GET /ping` — `204` vazio. `/video` chama ao abrir e de novo a cada 1 minuto. `/stream` chama no mesmo intervalo só enquanto a live está no ar (`stayAwake`). Serve para o host não dormir.
+- `GET /webcam` — `public/webcam/webcam.html`. Extra solto, fora da sinalização e do CSS do vdz: só mostra a câmera ocupando a janela, para quem quiser capturar essa página e transmitir a webcam. Duplo clique pede tela cheia. `deviceId`, `deviceLabel` e `audioDeviceId` na query escolhem o aparelho; sem `audioDeviceId` não há áudio.
 
 A versão está em `package.json` (o Electron manda `app.getVersion()` na query), na checagem de `public/stream.html` e nas URLs de `public/list.html` e `public/update.html`. Ao mudar a versão, os quatro lugares precisam acompanhar. O instalador gerado se chama `vdz_<versão>.exe` e o link aponta para o asset dessa tag no GitHub Releases.
 

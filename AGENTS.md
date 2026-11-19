@@ -83,7 +83,7 @@ Fluxo de uma live:
 3. `/video?id=` envia `watcher`. O servidor manda `watcher` ao transmissor com um id numérico.
 4. O transmissor cria um `RTCPeerConnection` só para esse id, adiciona a faixa de vídeo e, se houver, a de áudio, gera a offer e manda `offer`.
 5. O espectador responde com `answer`. Candidatos ICE que chegaram cedo ficam numa fila até existir `remoteDescription`.
-6. `ontrack` no espectador joga o `MediaStream` no `<video>`. O vídeo começa mudo para o autoplay passar. A barra de volume (0–200%) cria um `AudioContext` com `GainNode`: 100% é o som original, 200% é o dobro. O botão de sair, os tipos `gone` / `stop`, o fim da faixa de vídeo e a queda da conexão voltam para `/list`. O `<video>` é esvaziado antes da troca, para o último quadro não ficar por cima da lista. `gone` e `stop` são tratados na hora, fora da fila.
+6. `ontrack` no espectador joga o `MediaStream` no `<video>`. O vídeo começa mudo para o autoplay passar. A barra de volume (0–100%) escreve direto em `video.volume`. O botão de sair, os tipos `gone` / `stop`, o fim da faixa de vídeo e a queda da conexão voltam para `/list`. O `<video>` é esvaziado antes da troca, para o último quadro não ficar por cima da lista. `gone` e `stop` são tratados na hora, fora da fila.
 
 No transmissor, as mensagens WebSocket são aplicadas em série (`chain`). No espectador também, menos `gone` e `stop`.
 

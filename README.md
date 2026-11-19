@@ -31,7 +31,7 @@ npm start
 ## Uso
 
 1. Quem transmite escolhe a janela, um nome e a qualidade, e entra no ar. O nome vira o id da live: só `[a-z0-9]`, no máximo 40 caracteres. Dois transmissores não compartilham o mesmo nome.
-2. Quem assiste vê o nome na lista e abre o player. O vídeo começa mudo para o autoplay passar. O volume vai de 0 a 200% (100% é o som original).
+2. Quem assiste vê o nome na lista e abre o player. O vídeo começa mudo para o autoplay passar. O volume vai de 0 a 100% e é o `volume` do `<video>`.
 3. Parar o compartilhamento encerra a live. Quem estava assistindo volta para a lista.
 
 Qualidade padrão na transmissão: 720p, 60 fps, 4 Mb. As opções de bitrate são 2, 4, 8 e 16 Mb.

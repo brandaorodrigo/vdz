@@ -16,7 +16,7 @@
     </video>
     <div hidden id="controls">
         <div id="volume">
-            <input aria-label="Volume da transmissão" aria-valuetext="0%" id="volume-bar" max="200" min="0" step="1"
+            <input aria-label="Volume da transmissão" aria-valuetext="0%" id="volume-bar" max="100" min="0" step="1"
                 type="range" value="0">
         </div>
         <button aria-label="Sair da transmissão" class="stop" id="leave" type="button"><img alt="Sair da transmissão"
@@ -37,13 +37,10 @@
         // O id da transmissão é o nome: só letras minúsculas e números.
         const broadcasterId = (new URLSearchParams(location.search).get('id') || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 40);
 
-        // Começa mudo para o autoplay ser aceito. A barra leva o som até 200%.
+        // Começa mudo para o autoplay ser aceito. A barra é o volume do <video>, de 0 a 100%.
         video.muted = true;
-        video.volume = 1;
+        video.volume = 0;
 
-        // Grafo de áudio criado no primeiro movimento da barra. O <video> só chega a 100%.
-        let audioCtx = null;
-        let gainNode = null;
         // Some os controles depois de 3s com o cursor parado no mesmo ponto.
         let volumeTimer = 0;
         let lastX = null;
@@ -60,23 +57,13 @@
             volumeTimer = setTimeout(hideControls, 3000);
         }
 
-        // O ganho 1 é o som original. 2 é o dobro, no fim da barra.
         function applyVolume() {
-            const level = Number(volumeBar.value) / 100;
-            if (!audioCtx) {
-                audioCtx = new AudioContext();
-                gainNode = audioCtx.createGain();
-                gainNode.gain.value = 0;
-                audioCtx.createMediaElementSource(video).connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-            }
-            gainNode.gain.value = level;
-            video.muted = level === 0;
+            video.volume = Number(volumeBar.value) / 100;
+            video.muted = video.volume === 0;
             volumeBar.setAttribute('aria-valuetext', `${volumeBar.value}%`);
             if (!video.muted) {
                 video.play().catch(() => { });
             }
-            audioCtx.resume();
         }
 
         volumeBar.addEventListener('input', applyVolume);
